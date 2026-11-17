@@ -1,19 +1,55 @@
 ﻿'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  ShieldCheck, Search, AlertTriangle, FileText, CheckCircle2,
-  Loader2, Scale, Paperclip, X, History, FileCheck2, Printer
+  Search,
+  Paperclip,
+  FileText,
+  History,
+  CheckCircle2,
+  AlertTriangle,
+  Download,
+  Loader2,
+  ChevronDown,
+  Layers,
+  Sparkles,
+  X
 } from 'lucide-react';
 
-export default function ComercIAPlusHome() {
+interface CapituloDisponible {
+  capitulo: string;
+  nombre: string;
+  ejemplo: string;
+  totalFracciones: number;
+}
+
+export default function Home() {
   const [descripcion, setDescripcion] = useState('');
   const [archivo, setArchivo] = useState<File | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<any>(null);
   const [historial, setHistorial] = useState<any[]>([]);
-  const [error, setError] = useState('');
+
+  const [capitulos, setCapitulos] = useState<CapituloDisponible[]>([]);
+  const [capituloActivo, setCapituloActivo] = useState<CapituloDisponible | null>(null);
+  const [menuCapitulosAbierto, setMenuCapitulosAbierto] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    cargarHistorial();
+    cargarCapitulos();
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setMenuCapitulosAbierto(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const cargarHistorial = async () => {
     try {
@@ -27,14 +63,37 @@ export default function ComercIAPlusHome() {
     }
   };
 
-  useEffect(() => {
-    cargarHistorial();
-  }, []);
+  const cargarCapitulos = async () => {
+    try {
+      const res = await fetch('/api/capitulos');
+      if (res.ok) {
+        const data: CapituloDisponible[] = await res.json();
+        setCapitulos(data);
+        if (data.length > 0) {
+          setCapituloActivo(data[0]);
+        }
+      }
+    } catch (e) {
+      console.error('Error cargando capítulos:', e);
+    }
+  };
+
+  const seleccionarCapitulo = (cap: CapituloDisponible) => {
+    setCapituloActivo(cap);
+    setDescripcion(cap.ejemplo);
+    setMenuCapitulosAbierto(false);
+    setError(null);
+  };
 
   const handleClasificar = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!descripcion.trim() && !archivo) {
+      setError('Por favor ingresa una descripción técnica o adjunta un archivo.');
+      return;
+    }
+
     setCargando(true);
-    setError('');
+    setError(null);
     setResultado(null);
 
     try {
@@ -50,7 +109,10 @@ export default function ComercIAPlusHome() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al clasificar');
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al clasificar la mercancía.');
+      }
+
       setResultado(data);
       cargarHistorial();
     } catch (err: any) {
@@ -60,151 +122,214 @@ export default function ComercIAPlusHome() {
     }
   };
 
-  const handleSeleccionArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        setError('El archivo supera el límite de 10 MB.');
-        return;
-      }
-      setArchivo(file);
-      setError('');
-    }
-  };
-
-  const handleImprimirDictamen = () => {
+  const imprimirDictamen = () => {
     window.print();
   };
 
-  const datosPdf = resultado
-    ? (resultado.identificacion ? resultado : (resultado.noms_aplicables?.identificacion ? resultado.noms_aplicables : resultado))
-    : null;
-
-  const listaNoms = Array.isArray(resultado?.noms_aplicables)
-    ? resultado.noms_aplicables
-    : (resultado?.noms_aplicables?.noms_aplicables || []);
-
-  const capituloNum = datosPdf?.capitulo || (resultado?.fraccion ? resultado.fraccion.slice(0, 2) : '--');
-  const partidaNum = datosPdf?.partida || (resultado?.fraccion ? resultado.fraccion.slice(0, 5) : '--');
-  const subpartidaNum = datosPdf?.subpartida || (resultado?.fraccion ? resultado.fraccion.slice(0, 7) : '--');
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans print:bg-white print:text-slate-900">
+    <div className="min-h-screen bg-[#070A10] text-slate-100 font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
       <style jsx global>{`
         @media print {
-          @page {
-            size: letter;
-            margin: 0.45in;
-          }
           body {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
             background: #ffffff !important;
+            color: #0f172a !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          .print-sheet {
+            box-shadow: none !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
           }
         }
       `}</style>
 
-      {/* Header web oculto en impresión */}
-      <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-10 print:hidden">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="bg-emerald-500/10 border border-emerald-500/30 p-2 rounded-lg">
-              <ShieldCheck className="w-6 h-6 text-emerald-400" />
+      {/* HEADER CORPORATIVO - COMBINACIÓN FORMA C (NODOS) + COLORES A (AZUL/CIAN) */}
+      <header className="no-print sticky top-0 z-40 border-b border-slate-800/80 bg-[#070A10]/90 backdrop-blur-md">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600/25 to-cyan-500/10 border border-cyan-400/35 shadow-[0_0_24px_rgba(56,189,248,0.18)]">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="#38BDF8" strokeWidth="1.5" strokeDasharray="3 3"/>
+                <path d="M12 6.5L17 15.5H7L12 6.5Z" stroke="#2563EB" strokeWidth="1.75" strokeLinejoin="round"/>
+                <circle cx="12" cy="6.5" r="2" fill="#38BDF8"/>
+                <circle cx="17" cy="15.5" r="2" fill="#2563EB"/>
+                <circle cx="7" cy="15.5" r="2" fill="#60A5FA"/>
+              </svg>
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-white">
-                Comerc<span className="text-emerald-400">IA+</span>
-              </h1>
+              <div className="flex items-center gap-0.5 text-xl font-bold tracking-tight text-white">
+                Comerc<span className="text-cyan-400">IA</span>
+                <span className="text-blue-500 font-extrabold">+</span>
+              </div>
               <p className="text-xs text-slate-400">Copiloto de Cumplimiento Aduanero & LIGIE</p>
             </div>
           </div>
-          <span className="text-xs bg-slate-800 text-emerald-400 border border-slate-700 px-3 py-1 rounded-full font-medium">
-            Piloto Automotriz (Cap. 87)
-          </span>
+
+          <div className="relative" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setMenuCapitulosAbierto(!menuCapitulosAbierto)}
+              className="flex items-center gap-2.5 px-3.5 py-2 rounded-full text-xs font-medium bg-[#0B1120] hover:bg-blue-950/50 text-cyan-300 border border-cyan-500/30 transition-all shadow-[0_0_15px_rgba(37,99,235,0.15)]"
+            >
+              <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+              <span>
+                {capitulos.length > 0
+                  ? `${capitulos.length} ${capitulos.length === 1 ? 'Capítulo Activo' : 'Capítulos Activos'} (${capitulos.map(c => `Cap. ${c.capitulo}`).join(' · ')})`
+                  : 'Cargando catálogo TIGIE...'}
+              </span>
+              <ChevronDown className={`w-3.5 h-3.5 text-cyan-400 transition-transform ${menuCapitulosAbierto ? 'rotate-180' : ''}`} />
+            </button>
+
+            {menuCapitulosAbierto && (
+              <div className="absolute right-0 mt-2.5 w-80 rounded-2xl bg-[#0B1120] border border-slate-800 shadow-2xl p-2 z-50">
+                <div className="px-3 py-2 border-b border-slate-800/80 flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                    Capítulos en Base de Datos
+                  </span>
+                  <span className="text-[10px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full">
+                    En vivo
+                  </span>
+                </div>
+
+                <div className="mt-1.5 space-y-1">
+                  {capitulos.map((cap) => (
+                    <button
+                      key={cap.capitulo}
+                      type="button"
+                      onClick={() => seleccionarCapitulo(cap)}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors flex items-start justify-between gap-2 ${
+                        capituloActivo?.capitulo === cap.capitulo
+                          ? 'bg-blue-600/20 border border-cyan-500/30'
+                          : 'hover:bg-slate-800/60 border border-transparent'
+                      }`}
+                    >
+                      <div>
+                        <div className="text-xs font-semibold text-white flex items-center gap-1.5">
+                          <span className="text-cyan-400">Capítulo {cap.capitulo}</span>
+                          <span className="text-slate-500">•</span>
+                          <span className="text-slate-200">{cap.nombre}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Clic para cargar ejemplo en el clasificador
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 shrink-0">
+                        {cap.totalFracciones} frac.
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-10 space-y-8 print:p-0 print:space-y-3 print:max-w-none">
-        {/* Formulario web oculto en impresión */}
-        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl print:hidden">
-          <h2 className="text-lg font-semibold text-white mb-1">
-            Clasificación Arancelaria Asistida y Detección de NOMs
-          </h2>
-          <p className="text-sm text-slate-400 mb-5">
-            Describe la mercancía o adjunta su ficha técnica (PDF) / fotografía del producto para análisis multimodal.
-          </p>
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+        <section className="no-print rounded-2xl border border-slate-800/90 bg-[#0B1120] p-6 sm:p-8 shadow-2xl">
+          <div className="mb-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              Clasificación Arancelaria Asistida y Detección de NOMs
+            </h1>
+            <p className="text-sm text-slate-400 mt-1">
+              Describe la mercancía o adjunta su ficha técnica (PDF) / fotografía del producto para análisis multimodal.
+            </p>
+          </div>
 
           <form onSubmit={handleClasificar} className="space-y-4">
-            <textarea
-              rows={3}
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-              placeholder="Ej: Juego de 4 pastillas de freno cerámicas montadas sobre soporte de acero..."
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition"
-            />
-
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-950/70 border border-dashed border-slate-700 rounded-xl p-3.5">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,image/png,image/jpeg,image/webp"
-                onChange={handleSeleccionArchivo}
-                className="hidden"
+            <div className="relative">
+              <textarea
+                rows={4}
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+                placeholder="Ej: Camisa de vestir manga larga para caballero, confeccionada en tejido plano de popelina 100% algodón..."
+                className="w-full rounded-xl bg-[#070A10] border border-slate-800 focus:border-cyan-500/60 focus:ring-2 focus:ring-cyan-500/20 px-4 py-3.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all resize-none"
               />
+              {descripcion && (
+                <button
+                  type="button"
+                  onClick={() => setDescripcion('')}
+                  className="absolute top-3 right-3 text-slate-500 hover:text-slate-300 p-1 rounded-lg"
+                  title="Limpiar texto"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
 
-              {!archivo ? (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-[#070A10] border border-slate-800/90 px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,image/jpeg,image/png,image/webp"
+                  onChange={(e) => setArchivo(e.target.files?.[0] || null)}
+                  className="hidden"
+                />
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 text-xs text-slate-300 hover:text-emerald-400 transition cursor-pointer"
+                  className="flex items-center gap-2 text-xs text-slate-300 hover:text-cyan-300 transition-colors"
                 >
-                  <Paperclip className="w-4 h-4 text-emerald-400" />
-                  <span>Adjuntar Ficha Técnica (PDF) o Foto del producto (JPG, PNG, WebP)</span>
+                  <Paperclip className="w-4 h-4 text-cyan-400" />
+                  <span>
+                    {archivo ? archivo.name : 'Adjuntar Ficha Técnica (PDF) o Foto del producto (JPG, PNG, WebP)'}
+                  </span>
                 </button>
-              ) : (
-                <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs text-emerald-300">
-                  <FileCheck2 className="w-4 h-4 text-emerald-400" />
-                  <span className="font-medium truncate max-w-xs">{archivo.name}</span>
+                {archivo && (
                   <button
                     type="button"
                     onClick={() => {
                       setArchivo(null);
                       if (fileInputRef.current) fileInputRef.current.value = '';
                     }}
-                    className="text-slate-400 hover:text-red-400 ml-1 cursor-pointer"
+                    className="text-xs text-rose-400 hover:text-rose-300 ml-1"
                   >
-                    <X className="w-4 h-4" />
+                    (Quitar)
                   </button>
+                )}
+              </div>
+
+              {capitulos.length > 0 && (
+                <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
+                  <span className="flex items-center gap-1 text-slate-500">
+                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                    Ejemplos:
+                  </span>
+                  {capitulos.map((cap) => (
+                    <button
+                      key={cap.capitulo}
+                      type="button"
+                      onClick={() => seleccionarCapitulo(cap)}
+                      className="px-2.5 py-1 rounded-md bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 border border-cyan-500/20 font-medium transition-colors"
+                    >
+                      Cap. {cap.capitulo}
+                    </button>
+                  ))}
                 </div>
               )}
-
-              <div className="flex gap-2 text-xs text-slate-400">
-                <span>Ejemplos:</span>
-                <button
-                  type="button"
-                  onClick={() => setDescripcion('Pastillas de freno cerámicas montadas sobre placa de acero para automóvil de turismo.')}
-                  className="text-emerald-400 hover:underline cursor-pointer"
-                >
-                  Balatas
-                </button>
-              </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end pt-1">
               <button
                 type="submit"
-                disabled={cargando || (!descripcion.trim() && !archivo)}
-                className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-700 text-slate-950 font-semibold px-6 py-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer"
+                disabled={cargando}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 disabled:opacity-50 transition-all shadow-[0_0_25px_rgba(37,99,235,0.35)] cursor-pointer"
               >
                 {cargando ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Analizando mercancía...
+                    <span>Analizando Merceología...</span>
                   </>
                 ) : (
                   <>
                     <Search className="w-4 h-4" />
-                    Clasificar Mercancía
+                    <span>Clasificar Mercancía</span>
                   </>
                 )}
               </button>
@@ -212,376 +337,211 @@ export default function ComercIAPlusHome() {
           </form>
 
           {error && (
-            <div className="mt-4 p-4 bg-red-950/50 border border-red-800 text-red-300 rounded-xl text-sm">
-              {error}
+            <div className="mt-5 rounded-xl bg-rose-950/40 border border-rose-500/40 p-4 text-xs text-rose-200 flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
         </section>
 
-        {/* =====================================================================
-            VISTA WEB DE RESULTADOS
-           ===================================================================== */}
         {resultado && (
-          <section className="space-y-6 print:hidden">
-            <div className="bg-slate-900 border border-emerald-500/40 rounded-2xl p-6 shadow-xl">
-              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-5">
-                <div>
-                  <span className="text-xs uppercase tracking-wider text-emerald-400 font-semibold">
-                    Fracción Arancelaria + NICO Sugerido
-                  </span>
-                  <div className="flex items-baseline gap-3 mt-1">
-                    <span className="text-3xl font-mono font-bold text-white">
-                      {resultado.fraccion}
-                    </span>
-                    <span className="text-xl font-mono font-semibold bg-emerald-500/20 text-emerald-300 px-3 py-0.5 rounded-lg border border-emerald-500/30">
-                      NICO: {resultado.nico}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-300 mt-3 leading-relaxed">
-                    {resultado.descripcion_oficial}
-                  </p>
-                </div>
-
-                <div className="flex gap-3">
-                  <div className="bg-slate-950 border border-slate-800 px-4 py-2.5 rounded-xl text-center">
-                    <span className="block text-xs text-slate-400">IGI (Arancel)</span>
-                    <span className="text-lg font-bold text-white">{resultado.arancel_igi}</span>
-                  </div>
-                  <div className="bg-slate-950 border border-slate-800 px-4 py-2.5 rounded-xl text-center">
-                    <span className="block text-xs text-slate-400">Unidad</span>
-                    <span className="text-lg font-bold text-white">{resultado.unidad_medida}</span>
-                  </div>
-                  <div className="bg-slate-950 border border-slate-800 px-4 py-2.5 rounded-xl text-center">
-                    <span className="block text-xs text-slate-400">Confianza</span>
-                    <span className="text-lg font-bold text-emerald-400">{resultado.nivel_confianza}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleImprimirDictamen}
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition cursor-pointer shadow-lg shadow-blue-900/30"
-                >
-                  <Printer className="w-4 h-4" />
-                  Exportar Ficha Merceológica PDF
-                </button>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6 pt-5">
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-emerald-400" />
-                    Análisis Merceológico
-                  </h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">
-                    {resultado.analisis_merceologico}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                    <Scale className="w-4 h-4 text-emerald-400" />
-                    Fundamento Legal (Reglas LIGIE)
-                  </h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">
-                    {resultado.fundamento_ligie}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-              <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-amber-400" />
-                Regulaciones y Restricciones No Arancelarias (NOMs)
-              </h3>
-
-              {listaNoms.length > 0 ? (
-                <div className="grid md:grid-cols-2 gap-4">
-                  {listaNoms.map((nom: any, idx: number) => (
-                    <div key={idx} className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono font-bold text-amber-400 text-sm">{nom.norma}</span>
-                        <span className="text-xs bg-amber-500/10 text-amber-300 px-2.5 py-0.5 rounded-full border border-amber-500/20">
-                          {nom.tipo}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-300 leading-relaxed">{nom.detalle}</p>
-                      {nom.excepciones && (
-                        <p className="text-xs text-slate-500 italic">
-                          <strong>Excepciones:</strong> {nom.excepciones}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-400">
-                  No se detectaron NOMs específicas vinculadas en la base piloto para esta fracción.
-                </p>
-              )}
-            </div>
-
-            {resultado.alertas_riesgo && (
-              <div className="bg-amber-950/30 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                <div className="text-xs text-amber-200/90 leading-relaxed">
-                  <strong className="block text-amber-300 mb-0.5">Alerta de Cumplimiento SAT / ANAM:</strong>
-                  {resultado.alertas_riesgo}
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* =====================================================================
-            PLANTILLA DE IMPRESIÓN PDF (ACTUALIZADA CON TÍTULO, CONFIANZA Y LISTAS)
-           ===================================================================== */}
-        {resultado && (
-          <div className="hidden print:block text-slate-900 space-y-3">
-            {/* 1. Banner Superior Azul Marino con Subtítulo Oficial */}
-            <div className="bg-[#1e3a8a] text-white rounded-xl px-5 py-3.5 flex justify-between items-center">
+          <section className="print-sheet rounded-2xl bg-white text-slate-900 p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6">
+            <div className="rounded-xl bg-[#1E3A8A] text-white p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h1 className="text-base font-bold tracking-tight leading-tight">
+                <h2 className="text-lg sm:text-xl font-bold tracking-tight">
                   Ficha de Clasificación Merceológica
-                </h1>
-                <p className="text-[10px] text-blue-200 uppercase tracking-wider font-bold mt-0.5">
+                </h2>
+                <p className="text-[11px] uppercase tracking-widest text-blue-200 mt-0.5">
                   DICTAMEN TÉCNICO OFICIAL — COMERCIA+
                 </p>
               </div>
-              <div className="text-right">
-                <div className="text-xl font-mono font-extrabold tracking-wide leading-none">
+              <div className="sm:text-right">
+                <div className="text-2xl sm:text-3xl font-extrabold tracking-wider font-mono">
                   {resultado.fraccion}
                 </div>
-                <span className="text-[8.5px] uppercase tracking-widest text-blue-200 font-semibold">
+                <div className="text-[10px] uppercase tracking-widest text-blue-200">
                   FRACCIÓN ARANCELARIA
-                </span>
+                </div>
               </div>
             </div>
 
-            {/* 2. Barra de 6 Indicadores (Capítulo, Partida, Subpartida, NICO, Arancel, Confianza) */}
-            <div className="bg-[#eff6ff] border border-[#bfdbfe] rounded-xl py-2 px-3 grid grid-cols-6 text-center divide-x divide-[#bfdbfe]">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 rounded-xl bg-blue-50/80 border border-blue-100 p-3 text-center">
               <div>
-                <span className="block text-[8.5px] font-bold uppercase tracking-wider text-[#2563eb]">CAPÍTULO</span>
-                <span className="text-sm font-extrabold text-[#1e3a8a]">{capituloNum}</span>
+                <div className="text-[10px] font-bold text-blue-700 uppercase">Capítulo</div>
+                <div className="text-base font-extrabold text-slate-900 mt-0.5">{resultado.capitulo}</div>
               </div>
               <div>
-                <span className="block text-[8.5px] font-bold uppercase tracking-wider text-[#2563eb]">PARTIDA</span>
-                <span className="text-sm font-extrabold text-[#1e3a8a]">{partidaNum}</span>
+                <div className="text-[10px] font-bold text-blue-700 uppercase">Partida</div>
+                <div className="text-base font-extrabold text-slate-900 mt-0.5">{resultado.partida}</div>
               </div>
               <div>
-                <span className="block text-[8.5px] font-bold uppercase tracking-wider text-[#2563eb]">SUBPARTIDA</span>
-                <span className="text-sm font-extrabold text-[#1e3a8a]">{subpartidaNum}</span>
+                <div className="text-[10px] font-bold text-blue-700 uppercase">Subpartida</div>
+                <div className="text-base font-extrabold text-slate-900 mt-0.5">{resultado.subpartida}</div>
               </div>
               <div>
-                <span className="block text-[8.5px] font-bold uppercase tracking-wider text-[#2563eb]">NICO</span>
-                <span className="text-sm font-extrabold text-[#1e3a8a]">{resultado.nico}</span>
+                <div className="text-[10px] font-bold text-blue-700 uppercase">NICO</div>
+                <div className="text-base font-extrabold text-slate-900 mt-0.5">{resultado.nico}</div>
               </div>
               <div>
-                <span className="block text-[8.5px] font-bold uppercase tracking-wider text-[#2563eb]">ARANCEL (IGI)</span>
-                <span className="text-sm font-extrabold text-[#1e3a8a]">{resultado.arancel_igi}</span>
+                <div className="text-[10px] font-bold text-blue-700 uppercase">Arancel (IGI)</div>
+                <div className="text-base font-extrabold text-slate-900 mt-0.5">{resultado.arancel_igi}</div>
               </div>
               <div>
-                <span className="block text-[8.5px] font-bold uppercase tracking-wider text-[#2563eb]">CONFIANZA</span>
-                <span className="text-sm font-extrabold text-emerald-700">{resultado.nivel_confianza}</span>
+                <div className="text-[10px] font-bold text-blue-700 uppercase">Confianza</div>
+                <div className="text-base font-extrabold text-emerald-700 mt-0.5">{resultado.nivel_confianza}</div>
               </div>
             </div>
 
-            {/* 3. Dos Columnas con Borde Izquierdo Grueso */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="border border-slate-200 border-l-4 border-l-[#0284c7] rounded-xl p-3 bg-white">
-                <h2 className="text-[11px] font-extrabold uppercase tracking-wide text-[#0f172a] mb-1.5">
-                  IDENTIFICACIÓN DEL PRODUCTO
-                </h2>
-                {datosPdf?.identificacion ? (
-                  <ul className="space-y-1 text-[10.5px] text-slate-700 leading-snug list-disc pl-3.5">
-                    <li>
-                      <strong className="text-slate-900">Nombre Comercial:</strong> {datosPdf.identificacion.nombre_comercial}
-                    </li>
-                    <li>
-                      <strong className="text-slate-900">Nombre Técnico:</strong> {datosPdf.identificacion.nombre_tecnico}
-                    </li>
-                    <li>
-                      <strong className="text-slate-900">Estructura:</strong> {datosPdf.identificacion.estructura}
-                    </li>
-                    <li>
-                      <strong className="text-slate-900">Sistemas / Función:</strong> {datosPdf.identificacion.sistemas_funcion}
-                    </li>
-                  </ul>
-                ) : (
-                  <p className="text-[10.5px] text-slate-700 leading-snug">{resultado.analisis_merceologico}</p>
-                )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-slate-200 border-l-4 border-l-blue-600 p-4 space-y-2">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
+                  Identificación del Producto
+                </h3>
+                <ul className="text-xs text-slate-700 space-y-1.5">
+                  <li><strong>Nombre Comercial:</strong> {resultado.identificacion?.nombre_comercial}</li>
+                  <li><strong>Nombre Técnico:</strong> {resultado.identificacion?.nombre_tecnico}</li>
+                  <li><strong>Estructura:</strong> {resultado.identificacion?.estructura}</li>
+                  <li><strong>Sistemas / Función:</strong> {resultado.identificacion?.sistemas_funcion}</li>
+                </ul>
               </div>
 
-              <div className="border border-slate-200 border-l-4 border-l-[#0d9488] rounded-xl p-3 bg-white">
-                <h2 className="text-[11px] font-extrabold uppercase tracking-wide text-[#0f172a] mb-1.5">
-                  SUSTENTO LEGAL Y CRITERIO
-                </h2>
-                {datosPdf?.sustento ? (
-                  <div className="space-y-1.5 text-[10.5px] text-slate-700 leading-snug">
-                    <p>
-                      <strong className="text-slate-900">Fundamento LIGIE:</strong> {datosPdf.sustento.regla_nota_principal}
-                    </p>
-                    <p>
-                      <strong className="text-slate-900">Criterio Diferencial:</strong> {datosPdf.sustento.criterio_diferencial}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-[10.5px] text-slate-700 leading-snug">{resultado.fundamento_ligie}</p>
-                )}
+              <div className="rounded-xl border border-slate-200 border-l-4 border-l-cyan-600 p-4 space-y-2">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
+                  Sustento Legal y Criterio
+                </h3>
+                <div className="text-xs text-slate-700 space-y-2">
+                  <p><strong>Fundamento LIGIE:</strong> {resultado.sustento?.regla_nota_principal}</p>
+                  <p><strong>Criterio Diferencial:</strong> {resultado.sustento?.criterio_diferencial}</p>
+                </div>
               </div>
             </div>
 
-            {/* 4. Desglose de la LIGIE / Sistema Armonizado */}
-            <div className="border border-slate-200 rounded-xl p-3 bg-white">
-              <h2 className="text-[11px] font-extrabold uppercase tracking-wide text-[#0f172a] border-b border-slate-100 pb-1 mb-2">
-                DESGLOSE DE LA LIGIE / SISTEMA ARMONIZADO
-              </h2>
-              <div className="space-y-1 text-[10.5px] text-slate-700">
-                <div className="flex items-center gap-2">
-                  <span className="bg-[#e0f2fe] text-[#0369a1] font-mono font-bold px-2 py-0.5 rounded text-[9.5px] w-32 text-center shrink-0">
-                    Capítulo {capituloNum}
+            <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2">
+                Desglose de la LIGIE / Sistema Armonizado
+              </h3>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-start gap-3">
+                  <span className="px-2.5 py-1 rounded bg-blue-50 text-blue-800 font-bold w-36 shrink-0 text-center">
+                    Capítulo {resultado.capitulo}
                   </span>
-                  <span className="text-slate-400">→</span>
-                  <span className="truncate">{datosPdf?.desglose_ligie?.capitulo_desc || 'Sección correspondiente de la Tarifa (TIGIE).'}</span>
+                  <span className="text-slate-700 pt-1">→ {resultado.desglose_ligie?.capitulo_desc}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="bg-[#e0f2fe] text-[#0369a1] font-mono font-bold px-2 py-0.5 rounded text-[9.5px] w-32 text-center shrink-0">
-                    Partida {partidaNum}
+                <div className="flex items-start gap-3">
+                  <span className="px-2.5 py-1 rounded bg-blue-50 text-blue-800 font-bold w-36 shrink-0 text-center">
+                    Partida {resultado.partida}
                   </span>
-                  <span className="text-slate-400">→</span>
-                  <span className="truncate">{datosPdf?.desglose_ligie?.partida_desc || 'Partida específica conforme a materia constitutiva o función.'}</span>
+                  <span className="text-slate-700 pt-1">→ {resultado.desglose_ligie?.partida_desc}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="bg-[#e0f2fe] text-[#0369a1] font-mono font-bold px-2 py-0.5 rounded text-[9.5px] w-32 text-center shrink-0">
-                    Subpartida {subpartidaNum}
+                <div className="flex items-start gap-3">
+                  <span className="px-2.5 py-1 rounded bg-blue-50 text-blue-800 font-bold w-36 shrink-0 text-center">
+                    Subpartida {resultado.subpartida}
                   </span>
-                  <span className="text-slate-400">→</span>
-                  <span className="truncate">{datosPdf?.desglose_ligie?.subpartida_desc || 'Subpartida arancelaria determinada por Regla General 6.'}</span>
+                  <span className="text-slate-700 pt-1">→ {resultado.desglose_ligie?.subpartida_desc}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="bg-[#e0f2fe] text-[#0369a1] font-mono font-bold px-2 py-0.5 rounded text-[9.5px] w-32 text-center shrink-0">
+                <div className="flex items-start gap-3">
+                  <span className="px-2.5 py-1 rounded bg-blue-100 text-blue-900 font-bold w-36 shrink-0 text-center">
                     Fracción {resultado.fraccion}
                   </span>
-                  <span className="text-slate-400">→</span>
-                  <span>
-                    <strong className="text-slate-900">NICO {resultado.nico}:</strong> {datosPdf?.desglose_ligie?.fraccion_nico_desc || resultado.descripcion_oficial}
+                  <span className="text-slate-800 font-medium pt-1">
+                    → <strong>NICO {resultado.nico}:</strong> {resultado.desglose_ligie?.fraccion_nico_desc}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* 5. Tres Tarjetas Inferiores */}
-            <div className="grid grid-cols-3 gap-2.5">
-              <div className="border border-slate-200 rounded-xl p-2.5 bg-white">
-                <span className="inline-block bg-[#dcfce7] text-[#15803d] font-bold text-[9.5px] px-2 py-0.5 rounded uppercase mb-1">
-                  {listaNoms[0]?.norma || 'REGULACIÓN RRNA'}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {resultado.noms_aplicables?.map((nom: any, idx: number) => (
+                <div key={idx} className="rounded-xl border border-slate-200 p-3.5 space-y-1.5">
+                  <span className="inline-block px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                    {nom.norma}
+                  </span>
+                  <p className="text-xs text-slate-700">{nom.detalle}</p>
+                </div>
+              ))}
+              <div className="rounded-xl border border-slate-200 p-3.5 space-y-1.5">
+                <span className="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-[10px] font-bold">
+                  IMPUESTOS Y UNIDAD
                 </span>
-                <p className="text-[10px] text-slate-700 leading-snug">
-                  {listaNoms[0] ? `${listaNoms[0].tipo}: ${listaNoms[0].detalle}` : 'Sin restricción no arancelaria específica registrada.'}
-                </p>
-              </div>
-
-              <div className="border border-slate-200 rounded-xl p-2.5 bg-white">
-                <span className="inline-block bg-[#fef3c7] text-[#b45309] font-bold text-[9.5px] px-2 py-0.5 rounded uppercase mb-1">
-                  {listaNoms[1]?.norma || 'ETIQUETADO / NOM'}
-                </span>
-                <p className="text-[10px] text-slate-700 leading-snug">
-                  {listaNoms[1] ? `${listaNoms[1].tipo}: ${listaNoms[1].detalle}` : 'Verificar cumplimiento de información comercial (NOM-050).'}
-                </p>
-              </div>
-
-              <div className="border border-slate-200 rounded-xl p-2.5 bg-white">
-                <span className="inline-block bg-[#e0e7ff] text-[#1d4ed8] font-bold text-[9.5px] px-2 py-0.5 rounded uppercase mb-1">
-                  IMPUESTOS
-                </span>
-                <p className="text-[10px] text-slate-700 leading-snug">
-                  <strong>IGI & IVA:</strong> IGI {resultado.arancel_igi}. IVA {datosPdf?.iva_aplicable || '16%'}. Unidad: {resultado.unidad_medida}.
+                <p className="text-xs text-slate-700">
+                  <strong>IGI:</strong> {resultado.arancel_igi}. <strong>IVA:</strong> {resultado.iva_aplicable}. <strong>Unidad:</strong> {resultado.unidad_medida}.
                 </p>
               </div>
             </div>
 
-            {/* 6. Documentos para Carpeta de Agente Aduanal (En Lista con Viñetas Individuales) */}
-            <div className="border border-dashed border-slate-300 bg-slate-50 rounded-xl p-3">
-              <h3 className="text-[10.5px] font-extrabold uppercase tracking-wide text-[#0f172a] mb-1.5">
-                DOCUMENTOS PARA LA CARPETA DE AGENTE ADUANAL
+            <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-2">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
+                Documentos para la Carpeta de Agente Aduanal
               </h3>
-              <ul className="list-disc list-inside space-y-0.5 text-[10px] text-slate-700 leading-snug pl-1">
-                {datosPdf?.documentos_carpeta && datosPdf.documentos_carpeta.length > 0 ? (
-                  datosPdf.documentos_carpeta.map((doc: string, idx: number) => (
-                    <li key={idx}>{doc}</li>
-                  ))
-                ) : (
-                  <>
-                    <li>Ficha técnica del fabricante con especificaciones de material y diagrama.</li>
-                    <li>Factura comercial con desglose exacto de peso neto y descripción comercial.</li>
-                    <li>Prueba de origen válida (si aplica preferencia arancelaria TLCUEM u otro tratado).</li>
-                  </>
-                )}
+              <ul className="list-disc list-inside text-xs text-slate-700 space-y-1">
+                {resultado.documentos_carpeta?.map((doc: string, idx: number) => (
+                  <li key={idx}>{doc}</li>
+                ))}
               </ul>
             </div>
 
-            {/* 7. Pie de página limpio */}
-            <div className="border-t border-slate-200 pt-1.5 flex justify-between items-center text-[9px] text-slate-400">
-              <span>ComercIA+ — Dictamen Técnico Merceológico ({datosPdf?.titulo_dictamen || resultado.fraccion})</span>
-              <span>Emitido el {new Date().toLocaleDateString('es-MX')} • Folio CIA-{resultado.id ? resultado.id.slice(0, 6).toUpperCase() : '2026'}</span>
+            <div className="no-print flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={imprimirDictamen}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <Download className="w-4 h-4 text-cyan-400" />
+                <span>Descargar / Imprimir Ficha PDF</span>
+              </button>
             </div>
-          </div>
+          </section>
         )}
 
-        {/* Historial web oculto en impresión */}
-        {historial.length > 0 && (
-          <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 print:hidden">
-            <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-              <History className="w-5 h-5 text-emerald-400" />
-              Historial Reciente de Clasificaciones
-            </h3>
-            <div className="divide-y divide-slate-800">
+        <section className="no-print rounded-2xl border border-slate-800/90 bg-[#0B1120] p-6 shadow-xl">
+          <div className="flex items-center gap-2 mb-4">
+            <History className="w-4 h-4 text-cyan-400" />
+            <h2 className="text-sm font-bold text-white">Historial Reciente de Clasificaciones</h2>
+          </div>
+
+          {historial.length === 0 ? (
+            <p className="text-xs text-slate-500">Aún no hay dictámenes registrados.</p>
+          ) : (
+            <div className="divide-y divide-slate-800/80">
               {historial.map((item) => (
                 <div
                   key={item.id}
-                  onClick={() => {
-                    setResultado(item);
-                    setDescripcion(item.descripcion_usuario);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="py-3.5 flex flex-wrap items-center justify-between gap-4 hover:bg-slate-800/40 px-3 rounded-xl transition cursor-pointer"
+                  onClick={() => item.noms_aplicables && setResultado(item.noms_aplicables)}
+                  className="py-3.5 flex items-center justify-between gap-4 hover:bg-slate-800/30 px-3 rounded-xl transition-colors cursor-pointer"
                 >
-                  <div className="space-y-1 max-w-2xl">
+                  <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-emerald-400 text-sm">
+                      <span className="font-mono text-sm font-bold text-cyan-400">
                         {item.fraccion}
                       </span>
-                      <span className="text-xs font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded">
+                      <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] font-semibold">
                         NICO: {item.nico}
                       </span>
                       {item.archivo_adjunto && (
-                        <span className="text-xs bg-blue-500/10 text-blue-300 border border-blue-500/20 px-2 py-0.5 rounded flex items-center gap-1">
-                          <Paperclip className="w-3 h-3" />
+                        <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[10px] flex items-center gap-1">
+                          <FileText className="w-3 h-3" />
                           {item.archivo_adjunto}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-300 line-clamp-1">{item.descripcion_usuario}</p>
+                    <p className="text-xs text-slate-400 truncate">{item.descripcion_usuario}</p>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs text-slate-400 block">IGI: {item.arancel_igi}</span>
-                    <span className="text-[11px] text-slate-500">
+                  <div className="text-right shrink-0">
+                    <div className="text-xs font-semibold text-slate-200">IGI: {item.arancel_igi}</div>
+                    <div className="text-[10px] text-slate-500">
                       {new Date(item.created_at).toLocaleDateString('es-MX', {
                         day: '2-digit',
                         month: 'short',
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
-                    </span>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-          </section>
-        )}
+          )}
+        </section>
       </main>
     </div>
   );
