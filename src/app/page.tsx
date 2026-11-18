@@ -36,7 +36,7 @@ export default function Home() {
   const [capituloActivo, setCapituloActivo] = useState<CapituloDisponible | null>(null);
   const [menuCapitulosAbierto, setMenuCapitulosAbierto] = useState(false);
 
-  // Estados para la Calculadora de Land Cost (Valores por defecto basados en tu ejercicio de tazas)
+  // Estados para la Calculadora de Land Cost
   const [valorComercial, setValorComercial] = useState<string>('9000');
   const [incrementables, setIncrementables] = useState<string>('1840');
   const [tipoCambio, setTipoCambio] = useState<string>('17.0147');
@@ -132,7 +132,17 @@ export default function Home() {
     window.print();
   };
 
-  // Cálculos dinámicos de Land Cost basados en tu ejercicio
+  // Funciones formateadoras estándar México (Coma para miles, punto para decimales)
+  const formatExacto = (num: number) =>
+    num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const formatPedimento = (num: number) =>
+    num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const formatEntero = (num: number) =>
+    Math.round(num).toLocaleString('en-US');
+
+  // Cálculos dinámicos de Land Cost
   const vcNum = parseFloat(valorComercial) || 0;
   const incNum = parseFloat(incrementables) || 0;
   const tcNum = parseFloat(tipoCambio) || 1;
@@ -141,7 +151,6 @@ export default function Home() {
   const vaMXNExacto = vaUSD * tcNum;
   const vaMXNPedimento = Math.round(vaMXNExacto);
 
-  // Extracción numérica del porcentaje IGI (ej. "15%" -> 0.15)
   const parsearTasaIgi = (igiStr: string) => {
     if (!igiStr) return 0.15;
     const match = igiStr.match(/(\d+(\.\d+)?)/);
@@ -161,7 +170,6 @@ export default function Home() {
 
   // Base IVA = VA + IGI + DTA
   const baseIvaExacta = vaMXNExacto + igiExacto + dtaExacto;
-  const baseIvaPedimento = Math.round(baseIvaExacta);
 
   // IVA (16%)
   const ivaExacto = baseIvaExacta * 0.16;
@@ -509,7 +517,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* NUEVO MÓDULO: CALCULADORA DE CONTRIBUCIONES Y LAND COST (BASADO EN TU MAESTRÍA) */}
+            {/* MÓDULO CORREGIDO: CALCULADORA DE CONTRIBUCIONES Y LAND COST */}
             <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-blue-200/80 pb-3">
                 <div className="flex items-center gap-2">
@@ -566,13 +574,13 @@ export default function Home() {
                 <div className="rounded-lg bg-white p-3 border border-blue-200">
                   <div className="text-[10px] font-bold text-slate-500 uppercase">Valor en Aduana (USD)</div>
                   <div className="text-sm font-mono font-extrabold text-blue-900 mt-0.5">
-                    $ {vaUSD.toLocaleString('es-MX', { minimumFractionDigits: 2 })} USD
+                    $ {formatExacto(vaUSD)} USD
                   </div>
                 </div>
                 <div className="rounded-lg bg-white p-3 border border-blue-200">
                   <div className="text-[10px] font-bold text-slate-500 uppercase">Valor en Aduana Base Gravable (MXN)</div>
                   <div className="text-sm font-mono font-extrabold text-blue-900 mt-0.5">
-                    $ {vaMXNExacto.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN <span className="text-xs font-normal text-slate-500">(Pedimento: ${vaMXNPedimento.toLocaleString()})</span>
+                    $ {formatExacto(vaMXNExacto)} MXN <span className="text-xs font-normal text-slate-500">(Pedimento: ${formatEntero(vaMXNPedimento)})</span>
                   </div>
                 </div>
               </div>
@@ -592,33 +600,33 @@ export default function Home() {
                     <tr>
                       <td className="p-2.5 font-sans font-bold text-slate-900">IGI (Impuesto General de Importación)</td>
                       <td className="p-2.5 text-slate-600">{resultado.arancel_igi} sobre VA</td>
-                      <td className="p-2.5 text-right">$ {igiExacto.toFixed(2)}</td>
-                      <td className="p-2.5 text-right font-bold">$ {igiPedimento.toLocaleString()}</td>
+                      <td className="p-2.5 text-right">$ {formatExacto(igiExacto)}</td>
+                      <td className="p-2.5 text-right font-bold">$ {formatPedimento(igiPedimento)}</td>
                     </tr>
                     <tr>
                       <td className="p-2.5 font-sans font-bold text-slate-900">DTA (Derecho de Trámite Aduanero)</td>
                       <td className="p-2.5 text-slate-600">8 al millar (Art. 49 LFD)</td>
-                      <td className="p-2.5 text-right">$ {dtaExacto.toFixed(2)}</td>
-                      <td className="p-2.5 text-right font-bold">$ {dtaPedimento.toLocaleString()}</td>
+                      <td className="p-2.5 text-right">$ {formatExacto(dtaExacto)}</td>
+                      <td className="p-2.5 text-right font-bold">$ {formatPedimento(dtaPedimento)}</td>
                     </tr>
                     <tr>
                       <td className="p-2.5 font-sans font-bold text-slate-900">IVA (Impuesto al Valor Agregado)</td>
-                      <td className="p-2.5 text-slate-600">16% sobre Base (${baseIvaExacta.toFixed(0)})</td>
-                      <td className="p-2.5 text-right">$ {ivaExacto.toFixed(2)}</td>
-                      <td className="p-2.5 text-right font-bold">$ {ivaPedimento.toLocaleString()}</td>
+                      <td className="p-2.5 text-slate-600">16% sobre Base (${formatEntero(baseIvaExacta)})</td>
+                      <td className="p-2.5 text-right">$ {formatExacto(ivaExacto)}</td>
+                      <td className="p-2.5 text-right font-bold">$ {formatPedimento(ivaPedimento)}</td>
                     </tr>
                     <tr>
                       <td className="p-2.5 font-sans font-bold text-slate-900">PRV (Prevalidación)</td>
                       <td className="p-2.5 text-slate-600">Cuota Fija (Art. 16-A LA)</td>
-                      <td className="p-2.5 text-right">$ {prvFijo.toFixed(2)}</td>
-                      <td className="p-2.5 text-right font-bold">$ {prvFijo.toLocaleString()}</td>
+                      <td className="p-2.5 text-right">$ {formatExacto(prvFijo)}</td>
+                      <td className="p-2.5 text-right font-bold">$ {formatPedimento(prvFijo)}</td>
                     </tr>
                   </tbody>
                   <tfoot className="bg-blue-50 font-mono text-xs font-bold text-blue-950 border-t border-blue-200">
                     <tr>
                       <td colSpan={2} className="p-3 font-sans uppercase">Total de Contribuciones a Pagar en Aduana</td>
-                      <td className="p-3 text-right">$ {totalExacto.toFixed(2)} MXN</td>
-                      <td className="p-3 text-right text-blue-700">$ {totalPedimento.toLocaleString()} MXN</td>
+                      <td className="p-3 text-right">$ {formatExacto(totalExacto)} MXN</td>
+                      <td className="p-3 text-right text-blue-700">$ {formatPedimento(totalPedimento)} MXN</td>
                     </tr>
                   </tfoot>
                 </table>
