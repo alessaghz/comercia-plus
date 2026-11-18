@@ -6,14 +6,14 @@ import {
   Paperclip,
   FileText,
   History,
-  CheckCircle2,
   AlertTriangle,
   Download,
   Loader2,
   ChevronDown,
   Layers,
   Sparkles,
-  X
+  X,
+  ShieldCheck
 } from 'lucide-react';
 
 interface CapituloDisponible {
@@ -127,7 +127,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070A10] text-slate-100 font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-blue-600/15 selection:text-blue-900">
       <style jsx global>{`
         @media print {
           body {
@@ -147,51 +147,55 @@ export default function Home() {
         }
       `}</style>
 
-      {/* HEADER CORPORATIVO - COMBINACIÓN FORMA C (NODOS) + COLORES A (AZUL/CIAN) */}
-      <header className="no-print sticky top-0 z-40 border-b border-slate-800/80 bg-[#070A10]/90 backdrop-blur-md">
+      {/* HEADER CORPORATIVO CLARO ESTILO SAAS EMPRESARIAL */}
+      <header className="no-print sticky top-0 z-40 border-b border-slate-200/90 bg-white/95 backdrop-blur-md">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+          {/* Logo Híbrido: Nodos en Triángulo + Azul Cobalto/Cian */}
           <div className="flex items-center gap-3.5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600/25 to-cyan-500/10 border border-cyan-400/35 shadow-[0_0_24px_rgba(56,189,248,0.18)]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#0F172A] to-[#1E3A8A] border border-blue-900/20 shadow-sm">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="12" r="9" stroke="#38BDF8" strokeWidth="1.5" strokeDasharray="3 3"/>
-                <path d="M12 6.5L17 15.5H7L12 6.5Z" stroke="#2563EB" strokeWidth="1.75" strokeLinejoin="round"/>
+                <path d="M12 6.5L17 15.5H7L12 6.5Z" stroke="#60A5FA" strokeWidth="1.75" strokeLinejoin="round"/>
                 <circle cx="12" cy="6.5" r="2" fill="#38BDF8"/>
                 <circle cx="17" cy="15.5" r="2" fill="#2563EB"/>
-                <circle cx="7" cy="15.5" r="2" fill="#60A5FA"/>
+                <circle cx="7" cy="15.5" r="2" fill="#93C5FD"/>
               </svg>
             </div>
             <div>
-              <div className="flex items-center gap-0.5 text-xl font-bold tracking-tight text-white">
-                Comerc<span className="text-cyan-400">IA</span>
-                <span className="text-blue-500 font-extrabold">+</span>
+              <div className="flex items-center gap-0.5 text-xl font-extrabold tracking-tight text-slate-900">
+                Comerc<span className="text-blue-600">IA</span>
+                <span className="text-cyan-500 font-black">+</span>
               </div>
-              <p className="text-xs text-slate-400">Copiloto de Cumplimiento Aduanero & LIGIE</p>
+              <p className="text-xs font-medium text-slate-500">
+                Inteligencia Aduanera & Cumplimiento LIGIE
+              </p>
             </div>
           </div>
 
+          {/* Selector Dinámico de Capítulos */}
           <div className="relative" ref={dropdownRef}>
             <button
               type="button"
               onClick={() => setMenuCapitulosAbierto(!menuCapitulosAbierto)}
-              className="flex items-center gap-2.5 px-3.5 py-2 rounded-full text-xs font-medium bg-[#0B1120] hover:bg-blue-950/50 text-cyan-300 border border-cyan-500/30 transition-all shadow-[0_0_15px_rgba(37,99,235,0.15)]"
+              className="flex items-center gap-2.5 px-4 py-2 rounded-full text-xs font-semibold bg-blue-50/80 hover:bg-blue-100/80 text-blue-900 border border-blue-200/80 transition-all shadow-xs cursor-pointer"
             >
-              <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
               <span>
                 {capitulos.length > 0
                   ? `${capitulos.length} ${capitulos.length === 1 ? 'Capítulo Activo' : 'Capítulos Activos'} (${capitulos.map(c => `Cap. ${c.capitulo}`).join(' · ')})`
                   : 'Cargando catálogo TIGIE...'}
               </span>
-              <ChevronDown className={`w-3.5 h-3.5 text-cyan-400 transition-transform ${menuCapitulosAbierto ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3.5 h-3.5 text-blue-600 transition-transform ${menuCapitulosAbierto ? 'rotate-180' : ''}`} />
             </button>
 
             {menuCapitulosAbierto && (
-              <div className="absolute right-0 mt-2.5 w-80 rounded-2xl bg-[#0B1120] border border-slate-800 shadow-2xl p-2 z-50">
-                <div className="px-3 py-2 border-b border-slate-800/80 flex items-center justify-between">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-cyan-400" />
+              <div className="absolute right-0 mt-2.5 w-80 rounded-2xl bg-white border border-slate-200 shadow-xl p-2 z-50">
+                <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-blue-600" />
                     Capítulos en Base de Datos
                   </span>
-                  <span className="text-[10px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
                     En vivo
                   </span>
                 </div>
@@ -202,23 +206,23 @@ export default function Home() {
                       key={cap.capitulo}
                       type="button"
                       onClick={() => seleccionarCapitulo(cap)}
-                      className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors flex items-start justify-between gap-2 ${
+                      className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors flex items-start justify-between gap-2 cursor-pointer ${
                         capituloActivo?.capitulo === cap.capitulo
-                          ? 'bg-blue-600/20 border border-cyan-500/30'
-                          : 'hover:bg-slate-800/60 border border-transparent'
+                          ? 'bg-blue-50 border border-blue-200'
+                          : 'hover:bg-slate-50 border border-transparent'
                       }`}
                     >
                       <div>
-                        <div className="text-xs font-semibold text-white flex items-center gap-1.5">
-                          <span className="text-cyan-400">Capítulo {cap.capitulo}</span>
-                          <span className="text-slate-500">•</span>
-                          <span className="text-slate-200">{cap.nombre}</span>
+                        <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                          <span className="text-blue-600">Capítulo {cap.capitulo}</span>
+                          <span className="text-slate-300">•</span>
+                          <span className="text-slate-700">{cap.nombre}</span>
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
+                        <p className="text-[11px] text-slate-500 mt-0.5">
                           Clic para cargar ejemplo en el clasificador
                         </p>
                       </div>
-                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 shrink-0">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 shrink-0">
                         {cap.totalFracciones} frac.
                       </span>
                     </button>
@@ -230,15 +234,23 @@ export default function Home() {
         </div>
       </header>
 
+      {/* CONTENIDO PRINCIPAL */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-        <section className="no-print rounded-2xl border border-slate-800/90 bg-[#0B1120] p-6 sm:p-8 shadow-2xl">
-          <div className="mb-6">
-            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-              Clasificación Arancelaria Asistida y Detección de NOMs
-            </h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Describe la mercancía o adjunta su ficha técnica (PDF) / fotografía del producto para análisis multimodal.
-            </p>
+        {/* TARJETA PRINCIPAL DEL CLASIFICADOR */}
+        <section className="no-print rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-[11px] font-bold uppercase tracking-wider mb-2">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Motor Merceológico LIGIE / TIGIE
+              </div>
+              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+                Clasificación Arancelaria Asistida y Detección de NOMs
+              </h1>
+              <p className="text-sm text-slate-500 mt-1">
+                Describe la mercancía o adjunta su ficha técnica (PDF) / fotografía del producto para análisis multimodal.
+              </p>
+            </div>
           </div>
 
           <form onSubmit={handleClasificar} className="space-y-4">
@@ -248,13 +260,13 @@ export default function Home() {
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
                 placeholder="Ej: Camisa de vestir manga larga para caballero, confeccionada en tejido plano de popelina 100% algodón..."
-                className="w-full rounded-xl bg-[#070A10] border border-slate-800 focus:border-cyan-500/60 focus:ring-2 focus:ring-cyan-500/20 px-4 py-3.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all resize-none"
+                className="w-full rounded-xl bg-slate-50/70 border border-slate-200 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 px-4 py-3.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition-all resize-none"
               />
               {descripcion && (
                 <button
                   type="button"
                   onClick={() => setDescripcion('')}
-                  className="absolute top-3 right-3 text-slate-500 hover:text-slate-300 p-1 rounded-lg"
+                  className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
                   title="Limpiar texto"
                 >
                   <X className="w-4 h-4" />
@@ -262,7 +274,8 @@ export default function Home() {
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-[#070A10] border border-slate-800/90 px-4 py-2.5">
+            {/* BARRA DE ADJUNTOS Y EJEMPLOS */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-slate-50 border border-slate-200/80 px-4 py-2.5">
               <div className="flex items-center gap-2">
                 <input
                   ref={fileInputRef}
@@ -274,9 +287,9 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 text-xs text-slate-300 hover:text-cyan-300 transition-colors"
+                  className="flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-blue-700 transition-colors cursor-pointer"
                 >
-                  <Paperclip className="w-4 h-4 text-cyan-400" />
+                  <Paperclip className="w-4 h-4 text-blue-600" />
                   <span>
                     {archivo ? archivo.name : 'Adjuntar Ficha Técnica (PDF) o Foto del producto (JPG, PNG, WebP)'}
                   </span>
@@ -288,7 +301,7 @@ export default function Home() {
                       setArchivo(null);
                       if (fileInputRef.current) fileInputRef.current.value = '';
                     }}
-                    className="text-xs text-rose-400 hover:text-rose-300 ml-1"
+                    className="text-xs font-semibold text-rose-600 hover:text-rose-700 ml-1 cursor-pointer"
                   >
                     (Quitar)
                   </button>
@@ -296,9 +309,9 @@ export default function Home() {
               </div>
 
               {capitulos.length > 0 && (
-                <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
-                  <span className="flex items-center gap-1 text-slate-500">
-                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
+                  <span className="flex items-center gap-1 font-medium text-slate-500">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600" />
                     Ejemplos:
                   </span>
                   {capitulos.map((cap) => (
@@ -306,7 +319,7 @@ export default function Home() {
                       key={cap.capitulo}
                       type="button"
                       onClick={() => seleccionarCapitulo(cap)}
-                      className="px-2.5 py-1 rounded-md bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 border border-cyan-500/20 font-medium transition-colors"
+                      className="px-2.5 py-1 rounded-md bg-white hover:bg-blue-50 text-blue-700 border border-slate-200 hover:border-blue-300 font-semibold transition-colors shadow-2xs cursor-pointer"
                     >
                       Cap. {cap.capitulo}
                     </button>
@@ -319,7 +332,7 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={cargando}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 disabled:opacity-50 transition-all shadow-[0_0_25px_rgba(37,99,235,0.35)] cursor-pointer"
+                className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white bg-[#1E3A8A] hover:bg-blue-800 disabled:opacity-50 transition-all shadow-md shadow-blue-900/15 cursor-pointer"
               >
                 {cargando ? (
                   <>
@@ -337,15 +350,16 @@ export default function Home() {
           </form>
 
           {error && (
-            <div className="mt-5 rounded-xl bg-rose-950/40 border border-rose-500/40 p-4 text-xs text-rose-200 flex items-start gap-2.5">
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+            <div className="mt-5 rounded-xl bg-rose-50 border border-rose-200 p-4 text-xs text-rose-800 flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
         </section>
 
+        {/* FICHA EJECUTIVA DE CLASIFICACIÓN MERCEOLÓGICA */}
         {resultado && (
-          <section className="print-sheet rounded-2xl bg-white text-slate-900 p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6">
+          <section className="print-sheet rounded-2xl bg-white text-slate-900 p-6 sm:p-8 shadow-md border border-slate-200 space-y-6">
             <div className="rounded-xl bg-[#1E3A8A] text-white p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg sm:text-xl font-bold tracking-tight">
@@ -493,42 +507,43 @@ export default function Home() {
           </section>
         )}
 
-        <section className="no-print rounded-2xl border border-slate-800/90 bg-[#0B1120] p-6 shadow-xl">
+        {/* HISTORIAL RECIENTE */}
+        <section className="no-print rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
-            <History className="w-4 h-4 text-cyan-400" />
-            <h2 className="text-sm font-bold text-white">Historial Reciente de Clasificaciones</h2>
+            <History className="w-4 h-4 text-blue-600" />
+            <h2 className="text-sm font-extrabold text-slate-900">Historial Reciente de Clasificaciones</h2>
           </div>
 
           {historial.length === 0 ? (
             <p className="text-xs text-slate-500">Aún no hay dictámenes registrados.</p>
           ) : (
-            <div className="divide-y divide-slate-800/80">
+            <div className="divide-y divide-slate-100">
               {historial.map((item) => (
                 <div
                   key={item.id}
                   onClick={() => item.noms_aplicables && setResultado(item.noms_aplicables)}
-                  className="py-3.5 flex items-center justify-between gap-4 hover:bg-slate-800/30 px-3 rounded-xl transition-colors cursor-pointer"
+                  className="py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50 px-3 rounded-xl transition-colors cursor-pointer"
                 >
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-bold text-cyan-400">
+                      <span className="font-mono text-sm font-extrabold text-blue-700">
                         {item.fraccion}
                       </span>
-                      <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] font-semibold">
+                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">
                         NICO: {item.nico}
                       </span>
                       {item.archivo_adjunto && (
-                        <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[10px] flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-medium flex items-center gap-1">
                           <FileText className="w-3 h-3" />
                           {item.archivo_adjunto}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-400 truncate">{item.descripcion_usuario}</p>
+                    <p className="text-xs text-slate-600 truncate">{item.descripcion_usuario}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="text-xs font-semibold text-slate-200">IGI: {item.arancel_igi}</div>
-                    <div className="text-[10px] text-slate-500">
+                    <div className="text-xs font-bold text-slate-800">IGI: {item.arancel_igi}</div>
+                    <div className="text-[10px] text-slate-400">
                       {new Date(item.created_at).toLocaleDateString('es-MX', {
                         day: '2-digit',
                         month: 'short',
