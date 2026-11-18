@@ -172,7 +172,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Selector Dinámico de Capítulos */}
+          {/* Selector Dinámico de Capítulos con Capítulos Soportados directos */}
           <div className="relative" ref={dropdownRef}>
             <button
               type="button"
@@ -182,8 +182,8 @@ export default function Home() {
               <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
               <span>
                 {capitulos.length > 0
-                  ? `${capitulos.length} ${capitulos.length === 1 ? 'Capítulo Activo' : 'Capítulos Activos'} (${capitulos.map(c => `Cap. ${c.capitulo}`).join(' · ')})`
-                  : 'Cargando catálogo TIGIE...'}
+                  ? `Capítulos Soportados: ${capitulos.map(c => `Cap. ${c.capitulo}`).join(' · ')}`
+                  : 'Capítulos Soportados: Cap. 62 · 87'}
               </span>
               <ChevronDown className={`w-3.5 h-3.5 text-blue-600 transition-transform ${menuCapitulosAbierto ? 'rotate-180' : ''}`} />
             </button>
