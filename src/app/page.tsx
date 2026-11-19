@@ -17,7 +17,8 @@ import {
   Calculator,
   RefreshCw,
   Plus,
-  EyeOff
+  EyeOff,
+  User
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -34,6 +35,9 @@ export default function Home() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<any>(null);
+  const [folioDictamen, setFolioDictamen] = useState<string>('DICT-001');
+  const [fechaEmision, setFechaEmision] = useState<string>('');
+  const [solicitante, setSolicitante] = useState<string>('');
   const [historial, setHistorial] = useState<any[]>([]);
 
   const [capitulos, setCapitulos] = useState<CapituloDisponible[]>([]);
@@ -73,6 +77,25 @@ export default function Home() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const formatearFechaActual = () => {
+    return new Date().toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const generarFolio = (rawId?: string | number) => {
+    if (rawId !== undefined && rawId !== null && String(rawId).trim() !== '') {
+      const limpio = String(rawId).slice(0, 8).toUpperCase();
+      return `CIA-${limpio}`;
+    }
+    const aleatorio = Math.floor(100000 + Math.random() * 900000);
+    return `CIA-${aleatorio}`;
+  };
 
   const cargarHistorial = async () => {
     try {
@@ -179,6 +202,8 @@ export default function Home() {
       }
 
       setResultado(data);
+      setFolioDictamen(generarFolio(data?.id ?? data?.folio));
+      setFechaEmision(formatearFechaActual());
       setMostrarSimulador(false);
       cargarHistorial();
     } catch (err: any) {
@@ -189,6 +214,9 @@ export default function Home() {
   };
 
   const imprimirDictamen = () => {
+    if (!fechaEmision) {
+      setFechaEmision(formatearFechaActual());
+    }
     window.print();
   };
 
@@ -242,9 +270,15 @@ export default function Home() {
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-blue-600/15 selection:text-blue-900">
       <style jsx global>{`
         @media print {
+          @page {
+            size: letter portrait;
+            margin: 12mm;
+          }
           body {
             background: #ffffff !important;
             color: #0f172a !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .no-print {
             display: none !important;
@@ -255,6 +289,14 @@ export default function Home() {
             margin: 0 !important;
             padding: 0 !important;
             width: 100% !important;
+          }
+          .print-avoid-break {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+          table, tr, td, th {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
           }
         }
       `}</style>
@@ -470,16 +512,39 @@ export default function Home() {
         {/* FICHA EJECUTIVA DE CLASIFICACIÓN MERCEOLÓGICA */}
         {resultado && (
           <section className="print-sheet rounded-2xl bg-white text-slate-900 p-6 sm:p-8 shadow-md border border-slate-200 space-y-6">
-            <div className="rounded-xl bg-[#1E3A8A] text-white p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
+            {/* CAMPO OPCIONAL DE SOLICITANTE / RESPONSABLE (SOLO EN PANTALLA) */}
+            <div className="no-print rounded-xl bg-slate-50 border border-slate-200/80 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                <User className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>Solicitante o Responsable del Dictamen (opcional para el PDF):</span>
+              </div>
+              <input
+                type="text"
+                value={solicitante}
+                onChange={(e) => setSolicitante(e.target.value)}
+                placeholder="Ej. Nombre del solicitante o área..."
+                className="w-full sm:w-72 rounded-lg bg-white border border-slate-300 px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:border-blue-600 outline-none"
+              />
+            </div>
+
+            {/* ENCABEZADO DEL DICTAMEN CON FOLIO, FECHA Y FRACCIÓN */}
+            <div className="print-avoid-break rounded-xl bg-[#1E3A8A] text-white p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1.5">
                 <h2 className="text-lg sm:text-xl font-bold tracking-tight">
                   Ficha de Clasificación Merceológica
                 </h2>
-                <p className="text-[11px] uppercase tracking-widest text-blue-200 mt-0.5">
+                <p className="text-[11px] uppercase tracking-widest text-blue-200">
                   DICTAMEN TÉCNICO OFICIAL — COMERCIA+
                 </p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-[11px] text-blue-100 font-mono">
+                  <span><strong>Folio:</strong> {folioDictamen}</span>
+                  {fechaEmision && <span><strong>Emisión:</strong> {fechaEmision}</span>}
+                  {solicitante.trim() && (
+                    <span className="font-sans"><strong>Solicitante:</strong> {solicitante.trim()}</span>
+                  )}
+                </div>
               </div>
-              <div className="sm:text-right">
+              <div className="sm:text-right shrink-0">
                 <div className="text-2xl sm:text-3xl font-extrabold tracking-wider font-mono">
                   {resultado.fraccion}
                 </div>
@@ -489,7 +554,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 rounded-xl bg-blue-50/80 border border-blue-100 p-3 text-center">
+            <div className="print-avoid-break grid grid-cols-3 sm:grid-cols-6 gap-2 rounded-xl bg-blue-50/80 border border-blue-100 p-3 text-center">
               <div>
                 <div className="text-[10px] font-bold text-blue-700 uppercase">Capítulo</div>
                 <div className="text-base font-extrabold text-slate-900 mt-0.5">{resultado.capitulo}</div>
@@ -516,7 +581,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="print-avoid-break grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-xl border border-slate-200 border-l-4 border-l-blue-600 p-4 space-y-2">
                 <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
                   Identificación del Producto
@@ -540,7 +605,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+            <div className="print-avoid-break rounded-xl border border-slate-200 p-4 space-y-3">
               <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2">
                 Desglose de la LIGIE / Sistema Armonizado
               </h3>
@@ -574,7 +639,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* INTERRUPTOR OPCIONAL PARA EL SIMULADOR DE IMPUESTOS (SE OCULTA AL IMPRIMIR SI ESTÁ APAGADO) */}
+            {/* INTERRUPTOR OPCIONAL PARA EL SIMULADOR DE IMPUESTOS */}
             {!mostrarSimulador ? (
               <div className="no-print rounded-xl border border-dashed border-blue-300 bg-blue-50/40 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
@@ -601,22 +666,22 @@ export default function Home() {
               </div>
             ) : (
               /* MÓDULO CALCULADORA DE CONTRIBUCIONES Y LAND COST */
-              <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-5 space-y-4">
+              <div className="print-avoid-break rounded-xl border border-blue-200 bg-blue-50/40 p-5 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-blue-200/80 pb-3">
-                  <div className="flex items-center gap-2">
-                    <Calculator className="w-5 h-5 text-blue-700" />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Calculator className="w-5 h-5 text-blue-700 shrink-0" />
                     <h3 className="text-sm font-extrabold text-blue-900 uppercase tracking-wide">
                       Simulador Financiero de Importación (Land Cost & Contribuciones)
                     </h3>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-semibold text-blue-700 bg-blue-100/80 px-2.5 py-1 rounded-full">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[11px] font-semibold text-blue-700 bg-blue-100/80 px-2.5 py-1 rounded-full whitespace-nowrap">
                       Art. 65 LA & LFD / LIVA
                     </span>
                     <button
                       type="button"
                       onClick={() => setMostrarSimulador(false)}
-                      className="no-print inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-rose-700 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 px-2.5 py-1 rounded-full transition-colors cursor-pointer"
+                      className="no-print inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-rose-700 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 px-2.5 py-1 rounded-full transition-colors cursor-pointer whitespace-nowrap"
                       title="Ocultar simulador y excluirlo del PDF"
                     >
                       <EyeOff className="w-3 h-3" />
@@ -625,10 +690,10 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Inputs de la Calculadora */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                {/* Inputs de la Calculadora alineados en altura */}
+                <div className="grid grid-cols-3 gap-3 items-end">
+                  <div className="flex flex-col justify-between h-full">
+                    <label className="block text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase mb-1.5 whitespace-nowrap">
                       Valor Comercial (VC USD)
                     </label>
                     <input
@@ -638,9 +703,9 @@ export default function Home() {
                       className="w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-blue-600 outline-none"
                     />
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Incrementables (INC USD - Art. 65 LA)
+                  <div className="flex flex-col justify-between h-full">
+                    <label className="block text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase mb-1.5 whitespace-nowrap">
+                      Incrementables (Art. 65 LA)
                     </label>
                     <input
                       type="number"
@@ -649,16 +714,16 @@ export default function Home() {
                       className="w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-blue-600 outline-none"
                     />
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-[11px] font-bold text-slate-700 uppercase">
+                  <div className="flex flex-col justify-between h-full">
+                    <div className="flex items-center justify-between gap-1 mb-1.5">
+                      <label className="block text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase whitespace-nowrap">
                         Tipo de Cambio DOF (MXN)
                       </label>
                       <button
                         type="button"
                         onClick={handleSincronizarDof}
                         disabled={sincronizandoDof}
-                        className="no-print inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 hover:text-blue-900 bg-blue-100/70 hover:bg-blue-100 px-2 py-0.5 rounded transition-colors cursor-pointer disabled:opacity-50"
+                        className="no-print inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 hover:text-blue-900 bg-blue-100/70 hover:bg-blue-100 px-2 py-0.5 rounded transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap"
                         title="Sincronizar tipo de cambio y guardar en Supabase"
                       >
                         <RefreshCw className={`w-3 h-3 ${sincronizandoDof ? 'animate-spin' : ''}`} />
@@ -682,14 +747,17 @@ export default function Home() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <div className="rounded-lg bg-white p-3 border border-blue-200">
                     <div className="text-[10px] font-bold text-slate-500 uppercase">Valor en Aduana (USD)</div>
-                    <div className="text-sm font-mono font-extrabold text-blue-900 mt-0.5">
+                    <div className="text-sm font-mono font-extrabold text-blue-900 mt-0.5 whitespace-nowrap">
                       $ {formatExacto(vaUSD)} USD
                     </div>
                   </div>
                   <div className="rounded-lg bg-white p-3 border border-blue-200">
                     <div className="text-[10px] font-bold text-slate-500 uppercase">Valor en Aduana Base Gravable (MXN)</div>
                     <div className="text-sm font-mono font-extrabold text-blue-900 mt-0.5">
-                      $ {formatExacto(vaMXNExacto)} MXN <span className="text-xs font-normal text-slate-500">(Pedimento: ${formatEntero(vaMXNPedimento)})</span>
+                      <span className="whitespace-nowrap">$ {formatExacto(vaMXNExacto)} MXN</span>{' '}
+                      <span className="text-xs font-normal text-slate-500 whitespace-nowrap">
+                        (Pedimento: ${formatEntero(vaMXNPedimento)})
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -701,41 +769,45 @@ export default function Home() {
                       <tr>
                         <th className="p-2.5">Concepto Tributario</th>
                         <th className="p-2.5">Base / Tasa Aplicada</th>
-                        <th className="p-2.5 text-right">Monto Exacto (MXN)</th>
-                        <th className="p-2.5 text-right">Monto Pedimento (MXN)</th>
+                        <th className="p-2.5 text-right whitespace-nowrap">Monto Exacto (MXN)</th>
+                        <th className="p-2.5 text-right whitespace-nowrap">Monto Pedimento (MXN)</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                    <tbody className="divide-y divide-slate-100 font-mono text-[11px] leading-normal">
                       <tr>
-                        <td className="p-2.5 font-sans font-bold text-slate-900">IGI (Impuesto General de Importación)</td>
-                        <td className="p-2.5 text-slate-600">{resultado.arancel_igi} sobre VA</td>
-                        <td className="p-2.5 text-right">$ {formatExacto(igiExacto)}</td>
-                        <td className="p-2.5 text-right font-bold">$ {formatPedimento(igiPedimento)}</td>
+                        <td className="p-2.5 font-sans font-bold text-slate-900 align-middle">IGI (Impuesto General de Importación)</td>
+                        <td className="p-2.5 text-slate-600 align-middle whitespace-nowrap">{resultado.arancel_igi} sobre VA</td>
+                        <td className="p-2.5 text-right align-middle whitespace-nowrap">$ {formatExacto(igiExacto)}</td>
+                        <td className="p-2.5 text-right align-middle whitespace-nowrap font-bold">$ {formatPedimento(igiPedimento)}</td>
                       </tr>
                       <tr>
-                        <td className="p-2.5 font-sans font-bold text-slate-900">DTA (Derecho de Trámite Aduanero)</td>
-                        <td className="p-2.5 text-slate-600">8 al millar (Art. 49 LFD)</td>
-                        <td className="p-2.5 text-right">$ {formatExacto(dtaExacto)}</td>
-                        <td className="p-2.5 text-right font-bold">$ {formatPedimento(dtaPedimento)}</td>
+                        <td className="p-2.5 font-sans font-bold text-slate-900 align-middle">DTA (Derecho de Trámite Aduanero)</td>
+                        <td className="p-2.5 text-slate-600 align-middle whitespace-nowrap">8 al millar (Art. 49 LFD)</td>
+                        <td className="p-2.5 text-right align-middle whitespace-nowrap">$ {formatExacto(dtaExacto)}</td>
+                        <td className="p-2.5 text-right align-middle whitespace-nowrap font-bold">$ {formatPedimento(dtaPedimento)}</td>
                       </tr>
                       <tr>
-                        <td className="p-2.5 font-sans font-bold text-slate-900">IVA (Impuesto al Valor Agregado)</td>
-                        <td className="p-2.5 text-slate-600">{(ivaTasa * 100).toFixed(0)}% sobre Base (${formatEntero(baseIvaExacta)})</td>
-                        <td className="p-2.5 text-right">$ {formatExacto(ivaExacto)}</td>
-                        <td className="p-2.5 text-right font-bold">$ {formatPedimento(ivaPedimento)}</td>
+                        <td className="p-2.5 font-sans font-bold text-slate-900 align-middle">IVA (Impuesto al Valor Agregado)</td>
+                        <td className="p-2.5 text-slate-600 align-middle whitespace-nowrap">
+                          {(ivaTasa * 100).toFixed(0)}% sobre Base (${formatEntero(baseIvaExacta)})
+                        </td>
+                        <td className="p-2.5 text-right align-middle whitespace-nowrap">$ {formatExacto(ivaExacto)}</td>
+                        <td className="p-2.5 text-right align-middle whitespace-nowrap font-bold">$ {formatPedimento(ivaPedimento)}</td>
                       </tr>
                       <tr>
-                        <td className="p-2.5 font-sans font-bold text-slate-900">PRV (Prevalidación)</td>
-                        <td className="p-2.5 text-slate-600">Cuota Fija (Art. 16-A LA)</td>
-                        <td className="p-2.5 text-right">$ {formatExacto(prvFijo)}</td>
-                        <td className="p-2.5 text-right font-bold">$ {formatPedimento(prvFijo)}</td>
+                        <td className="p-2.5 font-sans font-bold text-slate-900 align-middle">PRV (Prevalidación)</td>
+                        <td className="p-2.5 text-slate-600 align-middle whitespace-nowrap">Cuota Fija (Art. 16-A LA)</td>
+                        <td className="p-2.5 text-right align-middle whitespace-nowrap">$ {formatExacto(prvFijo)}</td>
+                        <td className="p-2.5 text-right align-middle whitespace-nowrap font-bold">$ {formatPedimento(prvFijo)}</td>
                       </tr>
                     </tbody>
                     <tfoot className="bg-blue-50 font-mono text-xs font-bold text-blue-950 border-t border-blue-200">
                       <tr>
-                        <td colSpan={2} className="p-3 font-sans uppercase">Total de Contribuciones a Pagar en Aduana</td>
-                        <td className="p-3 text-right">$ {formatExacto(totalExacto)} MXN</td>
-                        <td className="p-3 text-right text-blue-700">$ {formatPedimento(totalPedimento)} MXN</td>
+                        <td colSpan={2} className="p-3 font-sans uppercase align-middle">
+                          Total de Contribuciones a Pagar en Aduana
+                        </td>
+                        <td className="p-3 text-right align-middle whitespace-nowrap">$ {formatExacto(totalExacto)} MXN</td>
+                        <td className="p-3 text-right align-middle whitespace-nowrap text-blue-700">$ {formatPedimento(totalPedimento)} MXN</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -743,7 +815,7 @@ export default function Home() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="print-avoid-break grid grid-cols-1 md:grid-cols-3 gap-3">
               {resultado.noms_aplicables?.map((nom: any, idx: number) => (
                 <div key={idx} className="rounded-xl border border-slate-200 p-3.5 space-y-1.5">
                   <span className="inline-block px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
@@ -762,7 +834,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-2">
+            <div className="print-avoid-break rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-2">
               <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
                 Documentos para la Carpeta de Agente Aduanal
               </h3>
@@ -803,6 +875,8 @@ export default function Home() {
                   onClick={() => {
                     if (item.noms_aplicables) {
                       setResultado(item.noms_aplicables);
+                      setFolioDictamen(generarFolio(item.id));
+                      setFechaEmision(formatearFechaActual());
                       setMostrarSimulador(false);
                     }
                   }}
