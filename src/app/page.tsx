@@ -14,8 +14,10 @@ import {
   Sparkles,
   X,
   ShieldCheck,
-  Calculator
+  Calculator,
+  RefreshCw
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 interface CapituloDisponible {
   capitulo: string;
@@ -41,12 +43,22 @@ export default function Home() {
   const [incrementables, setIncrementables] = useState<string>('1840');
   const [tipoCambio, setTipoCambio] = useState<string>('17.0147');
 
+  // Estado de sincronización DOF
+  const [sincronizandoDof, setSincronizandoDof] = useState(false);
+  const [mensajeDof, setMensajeDof] = useState<string | null>(null);
+
+  // Parámetros dinámicos cargados desde Supabase (tabla parametros_aduanales)
+  const [prvFijo, setPrvFijo] = useState<number>(383.00);
+  const [dtaTasa, setDtaTasa] = useState<number>(0.008);
+  const [ivaTasa, setIvaTasa] = useState<number>(0.16);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     cargarHistorial();
     cargarCapitulos();
+    cargarParametrosAduanales();
 
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -81,6 +93,48 @@ export default function Home() {
       }
     } catch (e) {
       console.error('Error cargando capítulos:', e);
+    }
+  };
+
+  const cargarParametrosAduanales = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('parametros_aduanales')
+        .select('clave, valor');
+
+      if (error || !data) return;
+
+      const mapa = new Map<string, number>();
+      data.forEach((row: { clave: string; valor: number | string }) => {
+        mapa.set(row.clave, Number(row.valor));
+      });
+
+      if (mapa.has('TIPO_CAMBIO_DOF')) {
+        setTipoCambio(String(mapa.get('TIPO_CAMBIO_DOF')));
+      }
+      if (mapa.has('PRV_FIJO')) setPrvFijo(mapa.get('PRV_FIJO')!);
+      if (mapa.has('DTA_TASA')) setDtaTasa(mapa.get('DTA_TASA')!);
+      if (mapa.has('IVA_TASA')) setIvaTasa(mapa.get('IVA_TASA')!);
+    } catch (e) {
+      console.error('Error cargando parametros_aduanales:', e);
+    }
+  };
+
+  const handleSincronizarDof = async () => {
+    setSincronizandoDof(true);
+    setMensajeDof(null);
+    try {
+      const res = await fetch('/api/parametros/dof', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo sincronizar el tipo de cambio.');
+      }
+      setTipoCambio(String(data.tipoCambio));
+      setMensajeDof(`Actualizado a $${data.tipoCambio} MXN`);
+    } catch (err: any) {
+      setMensajeDof(err.message || 'Error al sincronizar');
+    } finally {
+      setSincronizandoDof(false);
     }
   };
 
@@ -146,7 +200,7 @@ export default function Home() {
   const vcNum = parseFloat(valorComercial) || 0;
   const incNum = parseFloat(incrementables) || 0;
   const tcNum = parseFloat(tipoCambio) || 1;
-  
+
   const vaUSD = vcNum + incNum;
   const vaMXNExacto = vaUSD * tcNum;
   const vaMXNPedimento = Math.round(vaMXNExacto);
@@ -164,19 +218,16 @@ export default function Home() {
   const igiExacto = vaMXNExacto * tasaIgi;
   const igiPedimento = Math.round(igiExacto);
 
-  // DTA (8 al millar / 0.008) segun Art. 49 LFD
-  const dtaExacto = vaMXNExacto * 0.008;
+  // DTA según Art. 49 LFD (sincronizado desde Supabase)
+  const dtaExacto = vaMXNExacto * dtaTasa;
   const dtaPedimento = Math.round(dtaExacto);
 
   // Base IVA = VA + IGI + DTA
   const baseIvaExacta = vaMXNExacto + igiExacto + dtaExacto;
 
-  // IVA (16%)
-  const ivaExacto = baseIvaExacta * 0.16;
+  // IVA (sincronizado desde Supabase)
+  const ivaExacto = baseIvaExacta * ivaTasa;
   const ivaPedimento = Math.round(ivaExacto);
-
-  // PRV Fijo (Art. 16-A LA)
-  const prvFijo = 383.00;
 
   const totalExacto = igiExacto + dtaExacto + ivaExacto + prvFijo;
   const totalPedimento = igiPedimento + dtaPedimento + ivaPedimento + prvFijo;
@@ -517,7 +568,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* MÓDULO CORREGIDO: CALCULADORA DE CONTRIBUCIONES Y LAND COST */}
+            {/* MÓDULO CALCULADORA DE CONTRIBUCIONES Y LAND COST */}
             <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-blue-200/80 pb-3">
                 <div className="flex items-center gap-2">
@@ -556,9 +607,21 @@ export default function Home() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                    Tipo de Cambio Oficial DOF (MXN)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase">
+                      Tipo de Cambio DOF (MXN)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleSincronizarDof}
+                      disabled={sincronizandoDof}
+                      className="no-print inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 hover:text-blue-900 bg-blue-100/70 hover:bg-blue-100 px-2 py-0.5 rounded transition-colors cursor-pointer disabled:opacity-50"
+                      title="Sincronizar tipo de cambio y guardar en Supabase"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${sincronizandoDof ? 'animate-spin' : ''}`} />
+                      <span>{sincronizandoDof ? 'Sync...' : 'Sincronizar'}</span>
+                    </button>
+                  </div>
                   <input
                     type="number"
                     step="0.0001"
@@ -566,6 +629,9 @@ export default function Home() {
                     onChange={(e) => setTipoCambio(e.target.value)}
                     className="w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-blue-600 outline-none"
                   />
+                  {mensajeDof && (
+                    <p className="text-[10px] font-medium text-blue-700 mt-1">{mensajeDof}</p>
+                  )}
                 </div>
               </div>
 
@@ -611,7 +677,7 @@ export default function Home() {
                     </tr>
                     <tr>
                       <td className="p-2.5 font-sans font-bold text-slate-900">IVA (Impuesto al Valor Agregado)</td>
-                      <td className="p-2.5 text-slate-600">16% sobre Base (${formatEntero(baseIvaExacta)})</td>
+                      <td className="p-2.5 text-slate-600">{(ivaTasa * 100).toFixed(0)}% sobre Base (${formatEntero(baseIvaExacta)})</td>
                       <td className="p-2.5 text-right">$ {formatExacto(ivaExacto)}</td>
                       <td className="p-2.5 text-right font-bold">$ {formatPedimento(ivaPedimento)}</td>
                     </tr>
@@ -647,7 +713,7 @@ export default function Home() {
                   IMPUESTOS Y UNIDAD
                 </span>
                 <p className="text-xs text-slate-700">
-                  <strong>IGI:</strong> {resultado.arancel_igi}. <strong>IVA:</strong> 16%. <strong>Unidad:</strong> {resultado.unidad_medida || 'Pza'}.
+                  <strong>IGI:</strong> {resultado.arancel_igi}. <strong>IVA:</strong> {(ivaTasa * 100).toFixed(0)}%. <strong>Unidad:</strong> {resultado.unidad_medida || 'Pza'}.
                 </p>
               </div>
             </div>
