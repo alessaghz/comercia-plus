@@ -15,7 +15,9 @@ import {
   X,
   ShieldCheck,
   Calculator,
-  RefreshCw
+  RefreshCw,
+  Plus,
+  EyeOff
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -37,6 +39,9 @@ export default function Home() {
   const [capitulos, setCapitulos] = useState<CapituloDisponible[]>([]);
   const [capituloActivo, setCapituloActivo] = useState<CapituloDisponible | null>(null);
   const [menuCapitulosAbierto, setMenuCapitulosAbierto] = useState(false);
+
+  // Control opcional para el Simulador Financiero de Importación
+  const [mostrarSimulador, setMostrarSimulador] = useState<boolean>(false);
 
   // Estados para la Calculadora de Land Cost
   const [valorComercial, setValorComercial] = useState<string>('9000');
@@ -174,6 +179,7 @@ export default function Home() {
       }
 
       setResultado(data);
+      setMostrarSimulador(false);
       cargarHistorial();
     } catch (err: any) {
       setError(err.message);
@@ -461,7 +467,7 @@ export default function Home() {
           )}
         </section>
 
-        {/* FICHA EJECUTIVA DE CLASIFICACIÓN MERCEOLÓGICA + CALCULADORA LAND COST */}
+        {/* FICHA EJECUTIVA DE CLASIFICACIÓN MERCEOLÓGICA */}
         {resultado && (
           <section className="print-sheet rounded-2xl bg-white text-slate-900 p-6 sm:p-8 shadow-md border border-slate-200 space-y-6">
             <div className="rounded-xl bg-[#1E3A8A] text-white p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -568,136 +574,174 @@ export default function Home() {
               </div>
             </div>
 
-            {/* MÓDULO CALCULADORA DE CONTRIBUCIONES Y LAND COST */}
-            <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-5 space-y-4">
-              <div className="flex items-center justify-between border-b border-blue-200/80 pb-3">
-                <div className="flex items-center gap-2">
-                  <Calculator className="w-5 h-5 text-blue-700" />
-                  <h3 className="text-sm font-extrabold text-blue-900 uppercase tracking-wide">
-                    Simulador Financiero de Importación (Land Cost & Contribuciones)
-                  </h3>
+            {/* INTERRUPTOR OPCIONAL PARA EL SIMULADOR DE IMPUESTOS (SE OCULTA AL IMPRIMIR SI ESTÁ APAGADO) */}
+            {!mostrarSimulador ? (
+              <div className="no-print rounded-xl border border-dashed border-blue-300 bg-blue-50/40 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-blue-100 text-blue-700">
+                    <Calculator className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">
+                      ¿Necesitas estimar impuestos y Land Cost?
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Activa el simulador para calcular IGI, DTA, IVA y PRV e incluirlo en el dictamen PDF.
+                    </p>
+                  </div>
                 </div>
-                <span className="text-[11px] font-semibold text-blue-700 bg-blue-100/80 px-2.5 py-1 rounded-full">
-                  Art. 65 LA & LFD / LIVA
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setMostrarSimulador(true)}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors shadow-xs shrink-0 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Incluir cálculo de contribuciones</span>
+                </button>
               </div>
-
-              {/* Inputs de la Calculadora */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                    Valor Comercial (VC USD)
-                  </label>
-                  <input
-                    type="number"
-                    value={valorComercial}
-                    onChange={(e) => setValorComercial(e.target.value)}
-                    className="w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-blue-600 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                    Incrementables (INC USD - Art. 65 LA)
-                  </label>
-                  <input
-                    type="number"
-                    value={incrementables}
-                    onChange={(e) => setIncrementables(e.target.value)}
-                    className="w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-blue-600 outline-none"
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase">
-                      Tipo de Cambio DOF (MXN)
-                    </label>
+            ) : (
+              /* MÓDULO CALCULADORA DE CONTRIBUCIONES Y LAND COST */
+              <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-blue-200/80 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Calculator className="w-5 h-5 text-blue-700" />
+                    <h3 className="text-sm font-extrabold text-blue-900 uppercase tracking-wide">
+                      Simulador Financiero de Importación (Land Cost & Contribuciones)
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-blue-700 bg-blue-100/80 px-2.5 py-1 rounded-full">
+                      Art. 65 LA & LFD / LIVA
+                    </span>
                     <button
                       type="button"
-                      onClick={handleSincronizarDof}
-                      disabled={sincronizandoDof}
-                      className="no-print inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 hover:text-blue-900 bg-blue-100/70 hover:bg-blue-100 px-2 py-0.5 rounded transition-colors cursor-pointer disabled:opacity-50"
-                      title="Sincronizar tipo de cambio y guardar en Supabase"
+                      onClick={() => setMostrarSimulador(false)}
+                      className="no-print inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-rose-700 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 px-2.5 py-1 rounded-full transition-colors cursor-pointer"
+                      title="Ocultar simulador y excluirlo del PDF"
                     >
-                      <RefreshCw className={`w-3 h-3 ${sincronizandoDof ? 'animate-spin' : ''}`} />
-                      <span>{sincronizandoDof ? 'Sync...' : 'Sincronizar'}</span>
+                      <EyeOff className="w-3 h-3" />
+                      <span>Quitar del dictamen</span>
                     </button>
                   </div>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    value={tipoCambio}
-                    onChange={(e) => setTipoCambio(e.target.value)}
-                    className="w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-blue-600 outline-none"
-                  />
-                  {mensajeDof && (
-                    <p className="text-[10px] font-medium text-blue-700 mt-1">{mensajeDof}</p>
-                  )}
                 </div>
-              </div>
 
-              {/* Resultados de Valor en Aduana */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <div className="rounded-lg bg-white p-3 border border-blue-200">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase">Valor en Aduana (USD)</div>
-                  <div className="text-sm font-mono font-extrabold text-blue-900 mt-0.5">
-                    $ {formatExacto(vaUSD)} USD
+                {/* Inputs de la Calculadora */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Valor Comercial (VC USD)
+                    </label>
+                    <input
+                      type="number"
+                      value={valorComercial}
+                      onChange={(e) => setValorComercial(e.target.value)}
+                      className="w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-blue-600 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Incrementables (INC USD - Art. 65 LA)
+                    </label>
+                    <input
+                      type="number"
+                      value={incrementables}
+                      onChange={(e) => setIncrementables(e.target.value)}
+                      className="w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-blue-600 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase">
+                        Tipo de Cambio DOF (MXN)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleSincronizarDof}
+                        disabled={sincronizandoDof}
+                        className="no-print inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 hover:text-blue-900 bg-blue-100/70 hover:bg-blue-100 px-2 py-0.5 rounded transition-colors cursor-pointer disabled:opacity-50"
+                        title="Sincronizar tipo de cambio y guardar en Supabase"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${sincronizandoDof ? 'animate-spin' : ''}`} />
+                        <span>{sincronizandoDof ? 'Sync...' : 'Sincronizar'}</span>
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      value={tipoCambio}
+                      onChange={(e) => setTipoCambio(e.target.value)}
+                      className="w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-blue-600 outline-none"
+                    />
+                    {mensajeDof && (
+                      <p className="no-print text-[10px] font-medium text-blue-700 mt-1">{mensajeDof}</p>
+                    )}
                   </div>
                 </div>
-                <div className="rounded-lg bg-white p-3 border border-blue-200">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase">Valor en Aduana Base Gravable (MXN)</div>
-                  <div className="text-sm font-mono font-extrabold text-blue-900 mt-0.5">
-                    $ {formatExacto(vaMXNExacto)} MXN <span className="text-xs font-normal text-slate-500">(Pedimento: ${formatEntero(vaMXNPedimento)})</span>
+
+                {/* Resultados de Valor en Aduana */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div className="rounded-lg bg-white p-3 border border-blue-200">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase">Valor en Aduana (USD)</div>
+                    <div className="text-sm font-mono font-extrabold text-blue-900 mt-0.5">
+                      $ {formatExacto(vaUSD)} USD
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-white p-3 border border-blue-200">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase">Valor en Aduana Base Gravable (MXN)</div>
+                    <div className="text-sm font-mono font-extrabold text-blue-900 mt-0.5">
+                      $ {formatExacto(vaMXNExacto)} MXN <span className="text-xs font-normal text-slate-500">(Pedimento: ${formatEntero(vaMXNPedimento)})</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Tabla de Impuestos y Contribuciones */}
-              <div className="overflow-x-auto pt-1">
-                <table className="w-full text-left text-xs bg-white rounded-lg border border-blue-200 overflow-hidden">
-                  <thead className="bg-blue-900 text-white uppercase text-[10px]">
-                    <tr>
-                      <th className="p-2.5">Concepto Tributario</th>
-                      <th className="p-2.5">Base / Tasa Aplicada</th>
-                      <th className="p-2.5 text-right">Monto Exacto (MXN)</th>
-                      <th className="p-2.5 text-right">Monto Pedimento (MXN)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
-                    <tr>
-                      <td className="p-2.5 font-sans font-bold text-slate-900">IGI (Impuesto General de Importación)</td>
-                      <td className="p-2.5 text-slate-600">{resultado.arancel_igi} sobre VA</td>
-                      <td className="p-2.5 text-right">$ {formatExacto(igiExacto)}</td>
-                      <td className="p-2.5 text-right font-bold">$ {formatPedimento(igiPedimento)}</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-sans font-bold text-slate-900">DTA (Derecho de Trámite Aduanero)</td>
-                      <td className="p-2.5 text-slate-600">8 al millar (Art. 49 LFD)</td>
-                      <td className="p-2.5 text-right">$ {formatExacto(dtaExacto)}</td>
-                      <td className="p-2.5 text-right font-bold">$ {formatPedimento(dtaPedimento)}</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-sans font-bold text-slate-900">IVA (Impuesto al Valor Agregado)</td>
-                      <td className="p-2.5 text-slate-600">{(ivaTasa * 100).toFixed(0)}% sobre Base (${formatEntero(baseIvaExacta)})</td>
-                      <td className="p-2.5 text-right">$ {formatExacto(ivaExacto)}</td>
-                      <td className="p-2.5 text-right font-bold">$ {formatPedimento(ivaPedimento)}</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-sans font-bold text-slate-900">PRV (Prevalidación)</td>
-                      <td className="p-2.5 text-slate-600">Cuota Fija (Art. 16-A LA)</td>
-                      <td className="p-2.5 text-right">$ {formatExacto(prvFijo)}</td>
-                      <td className="p-2.5 text-right font-bold">$ {formatPedimento(prvFijo)}</td>
-                    </tr>
-                  </tbody>
-                  <tfoot className="bg-blue-50 font-mono text-xs font-bold text-blue-950 border-t border-blue-200">
-                    <tr>
-                      <td colSpan={2} className="p-3 font-sans uppercase">Total de Contribuciones a Pagar en Aduana</td>
-                      <td className="p-3 text-right">$ {formatExacto(totalExacto)} MXN</td>
-                      <td className="p-3 text-right text-blue-700">$ {formatPedimento(totalPedimento)} MXN</td>
-                    </tr>
-                  </tfoot>
-                </table>
+                {/* Tabla de Impuestos y Contribuciones */}
+                <div className="overflow-x-auto pt-1">
+                  <table className="w-full text-left text-xs bg-white rounded-lg border border-blue-200 overflow-hidden">
+                    <thead className="bg-blue-900 text-white uppercase text-[10px]">
+                      <tr>
+                        <th className="p-2.5">Concepto Tributario</th>
+                        <th className="p-2.5">Base / Tasa Aplicada</th>
+                        <th className="p-2.5 text-right">Monto Exacto (MXN)</th>
+                        <th className="p-2.5 text-right">Monto Pedimento (MXN)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                      <tr>
+                        <td className="p-2.5 font-sans font-bold text-slate-900">IGI (Impuesto General de Importación)</td>
+                        <td className="p-2.5 text-slate-600">{resultado.arancel_igi} sobre VA</td>
+                        <td className="p-2.5 text-right">$ {formatExacto(igiExacto)}</td>
+                        <td className="p-2.5 text-right font-bold">$ {formatPedimento(igiPedimento)}</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2.5 font-sans font-bold text-slate-900">DTA (Derecho de Trámite Aduanero)</td>
+                        <td className="p-2.5 text-slate-600">8 al millar (Art. 49 LFD)</td>
+                        <td className="p-2.5 text-right">$ {formatExacto(dtaExacto)}</td>
+                        <td className="p-2.5 text-right font-bold">$ {formatPedimento(dtaPedimento)}</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2.5 font-sans font-bold text-slate-900">IVA (Impuesto al Valor Agregado)</td>
+                        <td className="p-2.5 text-slate-600">{(ivaTasa * 100).toFixed(0)}% sobre Base (${formatEntero(baseIvaExacta)})</td>
+                        <td className="p-2.5 text-right">$ {formatExacto(ivaExacto)}</td>
+                        <td className="p-2.5 text-right font-bold">$ {formatPedimento(ivaPedimento)}</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2.5 font-sans font-bold text-slate-900">PRV (Prevalidación)</td>
+                        <td className="p-2.5 text-slate-600">Cuota Fija (Art. 16-A LA)</td>
+                        <td className="p-2.5 text-right">$ {formatExacto(prvFijo)}</td>
+                        <td className="p-2.5 text-right font-bold">$ {formatPedimento(prvFijo)}</td>
+                      </tr>
+                    </tbody>
+                    <tfoot className="bg-blue-50 font-mono text-xs font-bold text-blue-950 border-t border-blue-200">
+                      <tr>
+                        <td colSpan={2} className="p-3 font-sans uppercase">Total de Contribuciones a Pagar en Aduana</td>
+                        <td className="p-3 text-right">$ {formatExacto(totalExacto)} MXN</td>
+                        <td className="p-3 text-right text-blue-700">$ {formatPedimento(totalPedimento)} MXN</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {resultado.noms_aplicables?.map((nom: any, idx: number) => (
@@ -756,7 +800,12 @@ export default function Home() {
               {historial.map((item) => (
                 <div
                   key={item.id}
-                  onClick={() => item.noms_aplicables && setResultado(item.noms_aplicables)}
+                  onClick={() => {
+                    if (item.noms_aplicables) {
+                      setResultado(item.noms_aplicables);
+                      setMostrarSimulador(false);
+                    }
+                  }}
                   className="py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50 px-3 rounded-xl transition-colors cursor-pointer"
                 >
                   <div className="space-y-1 min-w-0">
