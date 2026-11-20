@@ -158,7 +158,9 @@ export default function Home() {
         throw new Error(data.error || 'No se pudo sincronizar el tipo de cambio.');
       }
       setTipoCambio(String(data.tipoCambio));
-      setMensajeDof(`Actualizado a $${data.tipoCambio} MXN`);
+      setMensajeDof(
+  `Vigente${data.fechaDof ? ` (${data.fechaDof})` : ''}: $${data.tipoCambio} MXN · ${data.fuente || 'DOF'}`
+);
     } catch (err: any) {
       setMensajeDof(err.message || 'Error al sincronizar');
     } finally {

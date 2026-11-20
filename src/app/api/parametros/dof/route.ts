@@ -2,44 +2,100 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-// Si tienes SUPABASE_SERVICE_ROLE_KEY en .env.local úsala para escrituras seguras;
-// si no, cae al anon key (asegúrate de tener política de UPDATE para anon/authenticated o service_role).
 const supabaseKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const supabaseServer = createClient(supabaseUrl, supabaseKey);
 
-async function obtenerTipoCambioExterno(): Promise<number | null> {
-  // Intento 1: Frankfurter API (USD -> MXN)
-  try {
-    const res = await fetch('https://api.frankfurter.app/latest?from=USD&to=MXN', {
-      cache: 'no-store',
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const rate = Number(data?.rates?.MXN);
-      if (!Number.isNaN(rate) && rate > 10 && rate < 50) {
-        return Number(rate.toFixed(4));
+interface ResultadoTipoCambio {
+  valor: number;
+  fecha: string | null;
+  fuente: string;
+}
+
+// Formato YYYY-MM-DD en horario oficial de México (evita desfases UTC en Vercel)
+function obtenerFechaMexico(diasAtras = 0): string {
+  const ahora = new Date();
+  const fechaBase = new Date(ahora.getTime() - diasAtras * 24 * 60 * 60 * 1000);
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(fechaBase);
+}
+
+async function obtenerTipoCambioOficialDOF(): Promise<ResultadoTipoCambio | null> {
+  // Intento 1 (Oficial y auditable): Banxico SIE - Serie SF60653 (Vigente para obligaciones/pedimentos de HOY, Art. 20 CFF)
+  const banxicoToken = process.env.BANXICO_TOKEN;
+  if (banxicoToken) {
+    try {
+      const fechaInicio = obtenerFechaMexico(7);
+      const fechaFin = obtenerFechaMexico(0);
+
+      const res = await fetch(
+        `https://www.banxico.org.mx/SieAPIRest/service/v1/series/SF60653/datos/${fechaInicio}/${fechaFin}`,
+        {
+          headers: {
+            'Bmx-Token': banxicoToken,
+            Accept: 'application/json',
+          },
+          cache: 'no-store',
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        const datos: Array<{ fecha: string; dato: string }> =
+          data?.bmx?.series?.[0]?.datos || [];
+
+        // Filtrar días inhábiles ("N/E") y tomar el último vigente hasta hoy
+        const validos = datos.filter((d) => {
+          const n = Number(d?.dato);
+          return !Number.isNaN(n) && n > 10 && n < 50;
+        });
+
+        const vigenteHoy = validos[validos.length - 1];
+        if (vigenteHoy) {
+          return {
+            valor: Number(Number(vigenteHoy.dato).toFixed(4)),
+            fecha: vigenteHoy.fecha,
+            fuente: 'Banxico SIE (Art. 20 CFF · SF60653)',
+          };
+        }
+      } else {
+        console.warn('Banxico API respondió con estatus:', res.status);
       }
+    } catch (e) {
+      console.warn('Error consultando Banxico SIE API:', e);
     }
-  } catch (e) {
-    console.warn('Frankfurter API no disponible, intentando respaldo...', e);
   }
 
-  // Intento 2: Open Exchange Rates API pública (USD -> MXN)
+  // Intento 2 (Respaldo sin token): Lectura directa de indicadores del DOF
   try {
-    const res = await fetch('https://open.er-api.com/v6/latest/USD', {
+    const res = await fetch('https://www.dof.gob.mx/indicadores.php', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; ComercIAPlus/1.0)',
+      },
       cache: 'no-store',
     });
+
     if (res.ok) {
-      const data = await res.json();
-      const rate = Number(data?.rates?.MXN);
-      if (!Number.isNaN(rate) && rate > 10 && rate < 50) {
-        return Number(rate.toFixed(4));
+      const html = await res.text();
+      const match = html.match(/D[OÓ]LAR[\s\S]{0,500}?(\d{2}\.\d{4})/i);
+      if (match && match[1]) {
+        const rate = Number(match[1]);
+        if (!Number.isNaN(rate) && rate > 10 && rate < 50) {
+          return {
+            valor: Number(rate.toFixed(4)),
+            fecha: obtenerFechaMexico(0),
+            fuente: 'DOF (dof.gob.mx)',
+          };
+        }
       }
     }
   } catch (e) {
-    console.warn('Open ER API no disponible:', e);
+    console.warn('Error consultando dof.gob.mx directamente:', e);
   }
 
   return null;
@@ -47,16 +103,20 @@ async function obtenerTipoCambioExterno(): Promise<number | null> {
 
 // GET o POST sincroniza TIPO_CAMBIO_DOF en parametros_aduanales
 async function sincronizarDof() {
-  const nuevoTc = await obtenerTipoCambioExterno();
+  const resultado = await obtenerTipoCambioOficialDOF();
 
-  if (!nuevoTc) {
+  if (!resultado) {
     return NextResponse.json(
-      { error: 'No se pudo consultar el tipo de cambio en este momento. Intenta de nuevo o ingrésalo manual.' },
+      {
+        error:
+          'No se pudo obtener el tipo de cambio oficial del DOF. Verifica BANXICO_TOKEN o ingrésalo manual.',
+      },
       { status: 502 }
     );
   }
 
-  // Intentar actualizar fila existente
+  const { valor: nuevoTc, fecha, fuente } = resultado;
+
   const { data: updated, error: updateError } = await supabaseServer
     .from('parametros_aduanales')
     .update({ valor: nuevoTc })
@@ -70,7 +130,6 @@ async function sincronizarDof() {
     );
   }
 
-  // Si no existía la fila TIPO_CAMBIO_DOF, insertarla
   if (!updated || updated.length === 0) {
     const { error: insertError } = await supabaseServer
       .from('parametros_aduanales')
@@ -88,6 +147,8 @@ async function sincronizarDof() {
     ok: true,
     clave: 'TIPO_CAMBIO_DOF',
     tipoCambio: nuevoTc,
+    fechaDof: fecha,
+    fuente,
     actualizadoEn: new Date().toISOString(),
   });
 }
