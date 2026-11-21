@@ -43,6 +43,7 @@ export default function Home() {
   const [capitulos, setCapitulos] = useState<CapituloDisponible[]>([]);
   const [capituloActivo, setCapituloActivo] = useState<CapituloDisponible | null>(null);
   const [menuCapitulosAbierto, setMenuCapitulosAbierto] = useState(false);
+  const [busquedaCapitulo, setBusquedaCapitulo] = useState('');
 
   // Control opcional para el Simulador Financiero de Importación
   const [mostrarSimulador, setMostrarSimulador] = useState<boolean>(false);
@@ -159,8 +160,8 @@ export default function Home() {
       }
       setTipoCambio(String(data.tipoCambio));
       setMensajeDof(
-  `Vigente${data.fechaDof ? ` (${data.fechaDof})` : ''}: $${data.tipoCambio} MXN · ${data.fuente || 'DOF'}`
-);
+        `Vigente${data.fechaDof ? ` (${data.fechaDof})` : ''}: $${data.tipoCambio} MXN · ${data.fuente || 'DOF'}`
+      );
     } catch (err: any) {
       setMensajeDof(err.message || 'Error al sincronizar');
     } finally {
@@ -172,6 +173,7 @@ export default function Home() {
     setCapituloActivo(cap);
     setDescripcion(cap.ejemplo);
     setMenuCapitulosAbierto(false);
+    setBusquedaCapitulo('');
     setError(null);
   };
 
@@ -242,12 +244,14 @@ export default function Home() {
   const vaMXNPedimento = Math.round(vaMXNExacto);
 
   const parsearTasaIgi = (igiStr: string) => {
-    if (!igiStr) return 0.15;
-    const match = igiStr.match(/(\d+(\.\d+)?)/);
+    if (!igiStr) return 0;
+    const limpio = igiStr.trim();
+    if (/exent|^ex\.?$|prohibid/i.test(limpio)) return 0;
+    const match = limpio.match(/(\d+(\.\d+)?)/);
     if (match) {
       return parseFloat(match[1]) / 100;
     }
-    return 0.15;
+    return 0;
   };
 
   const tasaIgi = resultado ? parsearTasaIgi(resultado.arancel_igi) : 0.15;
@@ -267,6 +271,23 @@ export default function Home() {
 
   const totalExacto = igiExacto + dtaExacto + ivaExacto + prvFijo;
   const totalPedimento = igiPedimento + dtaPedimento + ivaPedimento + prvFijo;
+
+  // Filtro rápido para el menú de 97 capítulos
+  const capitulosFiltrados = capitulos.filter((cap) => {
+    const q = busquedaCapitulo.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      cap.capitulo.toLowerCase().includes(q) ||
+      cap.nombre.toLowerCase().includes(q)
+    );
+  });
+
+  // 4 capítulos destacados para los botones de ejemplo rápido
+  const capitulosEjemplos = capitulos.filter((c) =>
+    ['62', '69', '84', '87'].includes(c.capitulo)
+  );
+  const ejemplosVisibles =
+    capitulosEjemplos.length > 0 ? capitulosEjemplos : capitulos.slice(0, 4);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-blue-600/15 selection:text-blue-900">
@@ -335,52 +356,72 @@ export default function Home() {
             >
               <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
               <span>
-                {capitulos.length > 0
-                  ? `Capítulos Soportados: ${capitulos.map(c => `Cap. ${c.capitulo}`).join(' · ')}`
-                  : 'Capítulos Soportados: Cap. 62 · 69 · 87'}
+                {capitulos.length > 5
+                  ? `TIGIE Completa: ${capitulos.length} Capítulos`
+                  : capitulos.length > 0
+                    ? `Capítulos Soportados: ${capitulos.map(c => `Cap. ${c.capitulo}`).join(' · ')}`
+                    : 'Cargando capítulos...'}
               </span>
               <ChevronDown className={`w-3.5 h-3.5 text-blue-600 transition-transform ${menuCapitulosAbierto ? 'rotate-180' : ''}`} />
             </button>
 
             {menuCapitulosAbierto && (
-              <div className="absolute right-0 mt-2.5 w-80 rounded-2xl bg-white border border-slate-200 shadow-xl p-2 z-50">
+              <div className="absolute right-0 mt-2.5 w-80 sm:w-96 rounded-2xl bg-white border border-slate-200 shadow-xl p-2 z-50">
                 <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                     <Layers className="w-3.5 h-3.5 text-blue-600" />
-                    Capítulos en Base de Datos
+                    Capítulos en Base de Datos ({capitulos.length})
                   </span>
                   <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
                     En vivo
                   </span>
                 </div>
 
-                <div className="mt-1.5 space-y-1">
-                  {capitulos.map((cap) => (
-                    <button
-                      key={cap.capitulo}
-                      type="button"
-                      onClick={() => seleccionarCapitulo(cap)}
-                      className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors flex items-start justify-between gap-2 cursor-pointer ${
-                        capituloActivo?.capitulo === cap.capitulo
-                          ? 'bg-blue-50 border border-blue-200'
-                          : 'hover:bg-slate-50 border border-transparent'
-                      }`}
-                    >
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                          <span className="text-blue-600">Capítulo {cap.capitulo}</span>
-                          <span className="text-slate-300">•</span>
-                          <span className="text-slate-700">{cap.nombre}</span>
+                {capitulos.length > 5 && (
+                  <div className="px-2 pt-2">
+                    <input
+                      type="text"
+                      value={busquedaCapitulo}
+                      onChange={(e) => setBusquedaCapitulo(e.target.value)}
+                      placeholder="Buscar capítulo (ej. 62, café, 85, textil...)"
+                      className="w-full rounded-lg bg-slate-50 border border-slate-200 px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                )}
+
+                <div className="mt-1.5 space-y-1 max-h-80 overflow-y-auto pr-1">
+                  {capitulosFiltrados.length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-4">
+                      Sin coincidencias para &ldquo;{busquedaCapitulo}&rdquo;
+                    </p>
+                  ) : (
+                    capitulosFiltrados.map((cap) => (
+                      <button
+                        key={cap.capitulo}
+                        type="button"
+                        onClick={() => seleccionarCapitulo(cap)}
+                        className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors flex items-start justify-between gap-2 cursor-pointer ${
+                          capituloActivo?.capitulo === cap.capitulo
+                            ? 'bg-blue-50 border border-blue-200'
+                            : 'hover:bg-slate-50 border border-transparent'
+                        }`}
+                      >
+                        <div>
+                          <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                            <span className="text-blue-600 shrink-0">Cap. {cap.capitulo}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="text-slate-700">{cap.nombre}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Clic para cargar ejemplo en el clasificador
+                          </p>
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                          Clic para cargar ejemplo en el clasificador
-                        </p>
-                      </div>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 shrink-0">
-                        {cap.totalFracciones} frac.
-                      </span>
-                    </button>
-                  ))}
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 shrink-0">
+                          {cap.totalFracciones} frac.
+                        </span>
+                      </button>
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -462,13 +503,13 @@ export default function Home() {
                 )}
               </div>
 
-              {capitulos.length > 0 && (
+              {ejemplosVisibles.length > 0 && (
                 <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
                   <span className="flex items-center gap-1 font-medium text-slate-500">
                     <Sparkles className="w-3.5 h-3.5 text-blue-600" />
                     Ejemplos:
                   </span>
-                  {capitulos.map((cap) => (
+                  {ejemplosVisibles.map((cap) => (
                     <button
                       key={cap.capitulo}
                       type="button"
